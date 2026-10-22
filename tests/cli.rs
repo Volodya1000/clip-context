@@ -13,8 +13,8 @@ fn execute(arguments: &[&str]) -> Output {
 fn help_is_available() {
     let output = execute(&["--help"]);
     assert!(output.status.success());
-    assert!(!output.stdout.is_empty());
-    assert!(output.stderr.is_empty());
+    assert_ne!(output.stdout, Vec::<u8>::new());
+    assert_eq!(output.stderr, Vec::<u8>::new());
 }
 
 #[test]
@@ -33,7 +33,7 @@ fn version_is_available() {
 fn unexpected_arguments_fail() {
     let output = execute(&["--unknown"]);
     assert!(!output.status.success());
-    assert!(!output.stderr.is_empty());
+    assert_ne!(output.stderr, Vec::<u8>::new());
 }
 
 #[test]
