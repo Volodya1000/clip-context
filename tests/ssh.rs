@@ -177,8 +177,7 @@ fn server_prefilter_omits_large_generated_cache_before_archive_transfer() {
 
     let existing_path = std::env::var_os("PATH").expect("test PATH must exist");
     let path = std::env::join_paths(
-        std::iter::once(fixture.path().join("tools"))
-            .chain(std::env::split_paths(&existing_path)),
+        std::iter::once(fixture.path().join("tools")).chain(std::env::split_paths(&existing_path)),
     )
     .expect("test PATH is valid");
     let output = Command::new(env!("CARGO_BIN_EXE_cpctx"))
