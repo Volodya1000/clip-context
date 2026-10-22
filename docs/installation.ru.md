@@ -52,7 +52,10 @@ sudo install -m 755 cpctx /usr/local/bin/cpctx
 cpctx --version
 ```
 
-`/usr/local/bin` обычно входит в `PATH`.
+`/usr/local/bin` обычно входит в `PATH`. Есть и
+[установочный скрипт](../scripts/install.sh): после проверки содержимого
+запустите `sudo sh scripts/install.sh vX.Y.Z`. Скрипт проверяет SHA-256
+и помещает программу в `/usr/local/bin`.
 
 ## Для выпускающего релиз
 
