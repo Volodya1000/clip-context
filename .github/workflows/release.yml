@@ -20,56 +20,15 @@ jobs:
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec  # stable
-      - name: Confirm release version and tag
-        shell: bash
+      - name: Check release shell scripts
         run: |
-          set -euo pipefail
-          version="$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -n 1)"
-          test -n "$version"
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
-            test "$GITHUB_REF_NAME" = "v$version"
-          fi
-          echo "PACKAGE_VERSION=$version" >> "$GITHUB_ENV"
-      - name: Build Linux release binary
-        run: cargo build --locked --release
-      - name: Package, smoke test and checksum
-        shell: bash
-        run: |
-          set -euo pipefail
-          version="$PACKAGE_VERSION"
-          test "$(./target/release/cpctx --version)" = "clip-context $version"
-          mkdir -p dist archive package/DEBIAN package/usr/bin
-          install -m 755 target/release/cpctx archive/cpctx
-          install -m 755 target/release/cpctx package/usr/bin/cpctx
-          cp LICENSE archive/LICENSE
-          tar -czf "dist/cpctx-v$version-linux-x86_64.tar.gz" -C archive cpctx LICENSE
-          cat > package/DEBIAN/control <<EOF
-          Package: clip-context
-          Version: $version
-          Section: utils
-          Priority: optional
-          Architecture: amd64
-          Maintainer: clip-context contributors
-          Depends: libc6 (>= 2.35)
-          Description: Project source context packaging CLI
-           Collect files and directory trees for sharing as Markdown.
-          EOF
-          dpkg-deb --root-owner-group --build package "dist/clip-context_${version}_amd64.deb"
-          mkdir -p "$RUNNER_TEMP/archive-test"
-          tar -xzf "dist/cpctx-v$version-linux-x86_64.tar.gz" -C "$RUNNER_TEMP/archive-test"
-          test "$("$RUNNER_TEMP/archive-test/cpctx" --version)" = "clip-context $version"
-          sudo dpkg -i "dist/clip-context_${version}_amd64.deb"
-          command -v cpctx
-          test "$(cpctx --version)" = "clip-context $version"
-          sudo dpkg -r clip-context
-          (cd dist && sha256sum ./*.tar.gz ./*.deb > SHA256SUMS.linux.txt)
-          PREFIX="$RUNNER_TEMP/prefix" \
-            CPCTX_ARCHIVE="$PWD/dist/cpctx-v$version-linux-x86_64.tar.gz" \
-            CPCTX_CHECKSUMS="$PWD/dist/SHA256SUMS.linux.txt" \
-            sh scripts/install.sh "v$version"
-          test "$("$RUNNER_TEMP/prefix/bin/cpctx" --version)" = "clip-context $version"
-          (cd dist && sha256sum --check SHA256SUMS.linux.txt)
+          bash -n scripts/release/*.sh
+          sh -n scripts/install.sh
+          shellcheck scripts/release/*.sh scripts/install.sh
+      - name: Check version and build Linux binary
+        run: bash scripts/release/build-linux.sh
+      - name: Package and smoke-test Linux installs
+        run: bash scripts/release/package-linux.sh
       - name: Upload tested Linux release packages
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
@@ -85,54 +44,12 @@ jobs:
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec  # stable
-      - name: Build release and verify version
+      - name: Build and check Windows binary
         shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $version = ((Select-String -Path Cargo.toml -Pattern '^version = "([^"]+)"' |
-              Select-Object -First 1).Matches.Groups[1].Value)
-          if ($env:GITHUB_REF -like 'refs/tags/*') {
-              if ($env:GITHUB_REF_NAME -cnotmatch '^v[0-9]+\.[0-9]+\.[0-9]+$' -or
-                  $env:GITHUB_REF_NAME -cne "v$version") {
-                  throw 'Release tag must match Cargo.toml version.'
-              }
-          }
-          cargo build --locked --release
-          if ($LASTEXITCODE -ne 0) { throw 'Cargo release build failed.' }
-          $actual = (& .\target\release\cpctx.exe --version).Trim()
-          if ($actual -ne "clip-context $version") { throw "Unexpected version: $actual" }
-          "PACKAGE_VERSION=$version" >> $env:GITHUB_ENV
-      - name: Package and test Windows installation
+        run: .\scripts\release\build-windows.ps1
+      - name: Package and smoke-test Windows installer
         shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $version = $env:PACKAGE_VERSION
-          New-Item -ItemType Directory dist -Force | Out-Null
-          $asset = "cpctx-v$version-windows-x86_64.zip"
-          $archive = Join-Path (Resolve-Path dist) $asset
-          Compress-Archive -Path .\target\release\cpctx.exe, .\LICENSE -DestinationPath $archive
-          $sha = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$sha  $asset" | Set-Content dist/SHA256SUMS.windows.txt -Encoding ascii
-          $directory = Join-Path $env:RUNNER_TEMP 'cpctx-release-smoke'
-          $installArgs = @{
-              Version = "v$version"
-              ArchivePath = $archive
-              ChecksumPath = 'dist/SHA256SUMS.windows.txt'
-              InstallDir = $directory
-          }
-          & .\scripts\install.ps1 @installArgs
-          $installed = Join-Path $directory 'cpctx.exe'
-          if ((& $installed --version).Trim() -ne "clip-context $version") {
-              throw 'Installed binary version does not match.'
-          }
-          if (-not (([Environment]::GetEnvironmentVariable('Path', 'User') -split ';') -icontains $directory)) {
-              throw 'Installer did not persist PATH.'
-          }
-          & .\scripts\install.ps1 -Uninstall -InstallDir $directory
-          if (Test-Path -LiteralPath $installed) { throw 'Uninstall left executable behind.' }
-          if (([Environment]::GetEnvironmentVariable('Path', 'User') -split ';') -icontains $directory) {
-              throw 'Uninstall left PATH entry behind.'
-          }
+        run: .\scripts\release\package-windows.ps1
       - name: Upload tested Windows release archive
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
@@ -157,25 +74,7 @@ jobs:
           pattern: release-*
           path: dist
           merge-multiple: false
-      - name: Verify tag is on main and package hashes
-        shell: bash
-        run: |
-          set -euo pipefail
-          [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          git fetch origin main
-          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
-          cat dist/release-linux/SHA256SUMS.linux.txt \
-              dist/release-windows/SHA256SUMS.windows.txt > dist/SHA256SUMS.txt
-          cp dist/release-linux/*.{deb,gz} dist/
-          cp dist/release-windows/*.zip dist/
-          (cd dist && sha256sum -c SHA256SUMS.txt)
-          test "$(find dist -maxdepth 1 -type f \( -name '*.zip' -o -name '*.tar.gz' -o -name '*.deb' \) | wc -l)" -eq 3
-      - name: Publish only fully tested packages
+      - name: Verify release assets and publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          gh release create "$GITHUB_REF_NAME" dist/*.zip dist/*.tar.gz \
-              dist/*.deb dist/SHA256SUMS.txt \
-              --verify-tag --generate-notes --title "$GITHUB_REF_NAME"
+        run: bash scripts/release/publish.sh

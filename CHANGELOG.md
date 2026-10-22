@@ -31,6 +31,8 @@ All notable changes to this project are documented here. Every pull request must
 
 ### Changed
 
+- Extract release build, packaging, smoke checks and publication into focused Windows/Linux scripts, keeping GitHub Actions as a small, guarded orchestration workflow.
+
 - Make `cpctx --help`/`-h` concise and introduce `--help-full` for the existing detailed reference; cover both with integration tests.
 
 - Update GitHub Actions security and commit-checking actions: Zizmor v0.7.1, Cocogitto action v4.2.0 and Gitleaks action v3.0.0.
