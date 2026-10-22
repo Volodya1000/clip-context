@@ -28,8 +28,7 @@ impl fmt::Display for OutputStats {
         write!(
             formatter,
             "Context: {whole_kib}.{fractional_digit} KiB ({} bytes) | ~{} tokens (estimated)",
-            self.bytes,
-            self.tokens_estimate
+            self.bytes, self.tokens_estimate
         )
     }
 }
