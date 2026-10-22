@@ -152,7 +152,10 @@ fn server_prefilter_omits_large_generated_cache_before_archive_transfer() {
     fixture.file("remote/src/main.rs", "small useful source");
     fixture.file("remote/.gitignore", "private/\n");
     fixture.file("remote/private/ignored.rs", "private content");
-    fixture.file("remote/.cpctx.toml", "[profiles.rust]\nextensions = ['rs']\n");
+    fixture.file(
+        "remote/.cpctx.toml",
+        "[profiles.rust]\nextensions = ['rs']\n",
+    );
     let big_directory = fixture.path().join("remote/node_modules/package");
     fs::create_dir_all(&big_directory).expect("generated dependencies");
     fs::write(
@@ -172,15 +175,25 @@ fn server_prefilter_omits_large_generated_cache_before_archive_transfer() {
     let permissions = fs::Permissions::from_mode(0o755);
     fs::set_permissions(executable, permissions).expect("mock SSH should be executable");
 
+    let existing_path = std::env::var_os("PATH").expect("test PATH must exist");
+    let path = std::env::join_paths(
+        std::iter::once(fixture.path().join("tools"))
+            .chain(std::env::split_paths(&existing_path)),
+    )
+    .expect("test PATH is valid");
     let output = Command::new(env!("CARGO_BIN_EXE_cpctx"))
         .arg("-s")
         .arg(fixture.path().join("remote"))
         .args(["--ssh", "test@server", "--profile", "rust"])
-        .env("PATH", fixture.path().join("tools"))
+        .env("PATH", path)
         .output()
         .expect("CLI should run");
 
-    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let body = String::from_utf8(output.stdout).expect("UTF-8 context");
     assert!(body.contains("small useful source"));
     assert!(!body.contains("private content"));

@@ -192,7 +192,6 @@ fn remote_tar_command(remote_path: &str) -> String {
     )
 }
 
-
 fn safe_relative_path(path: &Path) -> io::Result<PathBuf> {
     let mut result = PathBuf::new();
     for component in path.components() {
