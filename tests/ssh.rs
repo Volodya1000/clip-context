@@ -148,6 +148,8 @@ fn ssh_mode_preserves_profile_rules_using_local_config_files() {
 #[cfg(unix)]
 #[test]
 fn server_prefilter_omits_large_generated_cache_before_archive_transfer() {
+    use std::os::unix::fs::PermissionsExt;
+
     let fixture = Fixture::new();
     fixture.file("remote/src/main.rs", "small useful source");
     fixture.file("remote/.gitignore", "private/\n");
@@ -170,7 +172,6 @@ fn server_prefilter_omits_large_generated_cache_before_archive_transfer() {
         "tools/ssh",
         "#!/bin/sh\nfor command do :; done\nexec /bin/sh -c \"$command\"\n",
     );
-    use std::os::unix::fs::PermissionsExt;
     let executable = fixture.path().join("tools/ssh");
     let permissions = fs::Permissions::from_mode(0o755);
     fs::set_permissions(executable, permissions).expect("mock SSH should be executable");
