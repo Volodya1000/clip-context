@@ -58,6 +58,9 @@ fn ssh_mode_collects_only_allowed_files_and_respects_nested_gitignore() {
     assert!(!markdown.contains("unselected Python code"));
     assert!(!markdown.contains("blocked by gitignore"));
     assert!(!markdown.contains("clip-context-fixture"));
+    let stats = String::from_utf8_lossy(&output.stderr);
+    assert!(stats.contains(&format!("({} bytes)", markdown.len())));
+    assert!(stats.contains("tokens (estimated)"));
 }
 
 #[cfg(unix)]

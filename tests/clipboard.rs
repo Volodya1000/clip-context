@@ -111,6 +111,30 @@ mod linux {
     }
 
     #[test]
+    fn compact_clipboard_matches_stdout_and_reports_payload_size() {
+        let fixture = Fixture::new();
+        fixture.file("src/main.rs", "minimal context");
+        executable(&fixture, "wl-copy", CAPTURE);
+
+        let expected = Command::new(env!("CARGO_BIN_EXE_cpctx"))
+            .arg("-s")
+            .arg(fixture.path())
+            .args(["--format", "compact"])
+            .output()
+            .expect("CLI must execute");
+        assert!(expected.status.success());
+
+        let copied = execute_in_session(&fixture, "-c", true, false, &["--format", "compact"]);
+        assert!(copied.status.success());
+        assert_eq!(copied.stdout, Vec::<u8>::new());
+        assert_eq!(captured(&fixture).as_bytes(), expected.stdout);
+        let stderr = String::from_utf8_lossy(&copied.stderr);
+        assert!(stderr.contains(&format!("({} bytes)", expected.stdout.len())));
+        assert!(stderr.contains("tokens (estimated)"));
+        assert!(!stderr.contains("minimal context"));
+    }
+
+    #[test]
     fn long_clipboard_mode_respects_file_selection() {
         let fixture = Fixture::new();
         fixture.file("src/main.rs", "selected Rust text");
