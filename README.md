@@ -31,11 +31,12 @@ Every PR must follow Conventional Commits naming and change `CHANGELOG.md`. See 
 
 ## Roadmap
 
-1. Deterministic project snapshots and plain output (this PR).
-2. `.gitignore` support (this PR), followed by configuration-driven selection.
-3. Content-based secret detection and safe output limits.
-4. Native Windows/Linux clipboard.
-5. SSH remote collection and packaging.
+1. Deterministic project snapshots and plain output (implemented).
+2. `.gitignore` support (this PR).
+3. Configuration-driven file selection and profiles.
+4. Content-based secret detection and safe output limits.
+5. Native Windows/Linux clipboard.
+6. SSH remote collection and packaging.
 
 ## License
 
