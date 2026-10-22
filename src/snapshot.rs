@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 pub use collector::{
     collect_project, collect_project_with_options, collect_project_with_options_and_limits,
 };
-pub use filter::SelectionOptions;
+pub use filter::{BUILTIN_EXCLUDED_DIRECTORIES, SelectionOptions};
 pub use markdown::ContextFormat;
 pub use safety::{DEFAULT_MAX_ESTIMATED_TOKENS, DEFAULT_MAX_SOURCE_BYTES, SnapshotLimits};
 

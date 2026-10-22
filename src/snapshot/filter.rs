@@ -57,7 +57,10 @@ const DEFAULT_EXTENSIONS: &[&str] = &[
     "rs", "sh", "sql", "toml", "ts", "tsx", "txt", "yaml", "yml",
 ];
 
-const EXCLUDED_DIRECTORIES: &[&str] = &[
+/// Known generated directory names excluded by the local collector.
+///
+/// Remote SSH prefiltering may omit these to reduce tar archive size.
+pub const BUILTIN_EXCLUDED_DIRECTORIES: &[&str] = &[
     "build",
     "dist",
     "node_modules",
@@ -71,7 +74,7 @@ pub(super) fn is_hidden(name: &OsStr) -> bool {
 }
 
 pub(super) fn includes_directory(name: &OsStr, options: &SelectionOptions) -> bool {
-    !EXCLUDED_DIRECTORIES
+    !BUILTIN_EXCLUDED_DIRECTORIES
         .iter()
         .any(|excluded| name.eq_ignore_ascii_case(OsStr::new(excluded)))
         && !options

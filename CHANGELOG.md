@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Every pull request must
 
 ### Added
 
+- Prefilter known generated and hidden cache directories on SSH servers using supported tar exclude patterns, with automatic fallback for POSIX tar implementations without exclusions.
+
 - Expand `cpctx --help`/`-h` into a structured, English CLI reference with examples, defaults, safety and SSH notes; add precise invalid-option diagnostics and integration coverage.
 
 - Print exact rendered UTF-8 context bytes and fast approximate token counts to stderr after successful stdout/tree/clipboard output.
