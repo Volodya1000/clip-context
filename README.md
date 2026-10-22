@@ -77,7 +77,7 @@ cpctx -s /srv/project --ssh dev@server
 cpctx -c /srv/project --ssh dev@server --format compact
 ```
 
-The path is remote, but clipboard output stays on your local computer. Host-key verification uses your SSH configuration. The transferred archive is limited to **16 MiB**; filtering happens locally after download, so large repositories may hit this transfer limit.
+The path is remote, but clipboard output stays on your local computer. Host-key verification uses your SSH configuration. The transferred archive is limited to **16 MiB**; supported tar implementations prefilter known generated directories before transfer. Profiles and .gitignore filtering still run locally, so other large ignored files can hit this limit.
 
 ## Clipboard support
 
@@ -90,6 +90,8 @@ A graphical session is required to copy. Headless systems can use `cpctx -s` and
 ## Safety and limitations
 
 Known private-key headers and several common credential patterns block source exports. This is **not exhaustive secret detection**: inspect context before sharing sensitive projects. Tree-only mode reports paths without reading source file contents. SSH archives are handled in a temporary directory, with unsafe paths and link materialization blocked. The full-context output budget and the SSH archive transfer limit are separate safeguards.
+
+See [acceptance evidence](docs/acceptance.md) and the [detector threat model](docs/security.md).
 
 ## Reference
 

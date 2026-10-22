@@ -65,7 +65,8 @@ Remote SSH:
   Clipboard output stays local; existing SSH authentication and host keys apply.
   A tar archive is transferred first, with a 16 MiB / 10000-entry safety cap.
   Paths and archive entries are checked; links and devices are not extracted.
-  Filtering, profiles, budget limits and secret scanning run locally afterward.
+  Supported tar implementations prefilter known generated directories first.
+  Profiles, .gitignore filtering, budgets and secret scanning run locally afterward.
   The raw archive may exceed the cap even if many files would later be ignored.
   Remote --config must refer to a file relative to the remote project root.
 
@@ -78,7 +79,7 @@ Clipboard:
 Diagnostics:
   Successful exports print exact rendered UTF-8 bytes and a quick estimate
   (~1 token per 4 output bytes) to stderr, never into stdout or the clipboard.
-  These output metrics are separate from the source-file safety budgets.
+  Both output metrics and final output budgets describe the rendered context.
   Errors go to stderr with a nonzero exit status; invalid options suggest --help.
 
 Examples:

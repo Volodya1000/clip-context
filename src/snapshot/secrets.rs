@@ -37,9 +37,22 @@ const PREFIXES: &[(&str, usize)] = &[
 
 /// Detect selected well-known secrets without returning their contents.
 pub fn detect_secret(content: &str) -> Option<SecretKind> {
-    if content.lines().any(|line| {
-        let trimmed = line.trim();
-        trimmed.starts_with("-----BEGIN ") && trimmed.ends_with("PRIVATE KEY-----")
+    if content.match_indices("-----BEGIN ").any(|(index, _)| {
+        let remainder = &content[index + "-----BEGIN ".len()..];
+        [
+            "PRIVATE KEY",
+            "RSA PRIVATE KEY",
+            "EC PRIVATE KEY",
+            "DSA PRIVATE KEY",
+            "OPENSSH PRIVATE KEY",
+            "ENCRYPTED PRIVATE KEY",
+        ]
+        .iter()
+        .any(|label| {
+            remainder
+                .strip_prefix(label)
+                .is_some_and(|tail| tail.starts_with("-----"))
+        })
     }) {
         return Some(SecretKind::PrivateKey);
     }
@@ -85,9 +98,16 @@ fn contains_aws_access_key(content: &str) -> bool {
 }
 
 fn has_inline_credential(line: &str) -> bool {
-    let Some((left, right)) = line.split_once(['=', ':']) else {
-        return false;
-    };
+    // Try '=' separately so Rust/Python type annotations do not hide literals.
+    line.split_once('=').is_some_and(|(left, right)| {
+        !left.contains(['\'', '"', '`']) && credential_assignment(left, right)
+    }) || line
+        .split_once(':')
+        .is_some_and(|(left, right)| credential_assignment(left, right))
+}
+
+fn credential_assignment(left: &str, right: &str) -> bool {
+    let left = left.split_once(':').map_or(left, |(name, _)| name);
     let name = left
         .trim()
         .trim_matches(|character: char| !character.is_ascii_alphanumeric() && character != '_')
@@ -102,14 +122,23 @@ fn has_inline_credential(line: &str) -> bool {
         "auth_token",
         "client_secret",
         "secret_key",
+        "aws_secret_access_key",
+        "openai_api_key",
+        "github_token",
     ]
     .iter()
     .any(|expected| name.eq_ignore_ascii_case(expected))
     {
         return false;
     }
+    let right = right.trim();
+    let quoted = right.starts_with(['\'', '"', '`']);
+    if !quoted && left.split_whitespace().count() > 1 {
+        // A programming declaration assigning an identifier or expression is
+        // not itself evidence of a literal secret.
+        return false;
+    }
     let value = right
-        .trim()
         .trim_start_matches(['\'', '"', '`'])
         .bytes()
         .take_while(|byte| {
@@ -187,5 +216,65 @@ mod tests {
             SecretKind::CredentialAssignment.description(),
             "credential assignment"
         );
+    }
+
+    #[test]
+    fn every_service_prefix_has_a_minimum_length_boundary() {
+        for (prefix, minimum) in super::PREFIXES {
+            let short = format!("{prefix}{}", "Q".repeat(minimum - 1));
+            let complete = format!("{prefix}{}", "Q".repeat(*minimum));
+            assert_eq!(detect_secret(&short), None, "short {prefix}");
+            assert_eq!(
+                detect_secret(&complete),
+                Some(SecretKind::AccessToken),
+                "complete {prefix}"
+            );
+        }
+    }
+
+    #[test]
+    fn detects_quoted_keys_and_typed_credential_literals() {
+        for label in [
+            "PRIVATE KEY",
+            "RSA PRIVATE KEY",
+            "EC PRIVATE KEY",
+            "DSA PRIVATE KEY",
+            "OPENSSH PRIVATE KEY",
+            "ENCRYPTED PRIVATE KEY",
+        ] {
+            let embedded = format!("const KEY: &str = \"-----BEGIN {label}-----\\n\";");
+            assert_eq!(detect_secret(&embedded), Some(SecretKind::PrivateKey));
+        }
+        for line in [
+            "const API_KEY: &str = \"long_literal_credential\";",
+            "let password: String = \"long_literal_credential\".into();",
+            "password: str = 'long_literal_credential'",
+            "{\"client_secret\": \"long_literal_credential==\"}",
+            "export AWS_SECRET_ACCESS_KEY='long_literal_credential'",
+            "OPENAI_API_KEY: long_literal_credential",
+        ] {
+            assert_eq!(
+                detect_secret(line),
+                Some(SecretKind::CredentialAssignment),
+                "{line}"
+            );
+        }
+    }
+
+    #[test]
+    fn safe_programming_expressions_and_public_key_markers_are_not_credentials() {
+        for line in [
+            "let password = password_from_environment;",
+            "const API_KEY: &str = API_KEY_FROM_ENV;",
+            "password = std::env::var(\"PASSWORD\")?;",
+            "password = ${PASSWORD_FROM_ENV}",
+            "password: ${PASSWORD_FROM_ENV}",
+            "password: \"${PASSWORD_FROM_ENV}\"",
+            "password: \"short\"",
+        ] {
+            assert_eq!(detect_secret(line), None, "{line}");
+        }
+        let public = format!("-----BEGIN {}-----", "PUBLIC KEY");
+        assert_eq!(detect_secret(&public), None);
     }
 }
