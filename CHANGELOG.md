@@ -31,6 +31,8 @@ All notable changes to this project are documented here. Every pull request must
 
 ### Changed
 
+- Replace outdated README with concise English and Russian user guides, language links, release installation links, and current CLI examples.
+
 - Enforce `--max-bytes` and `--max-estimated-tokens` on fully rendered context, including Markdown, paths and optional tree; tree-only output no longer reads source content.
 
 - Make `cpctx --help`/`-h` concise and introduce `--help-full` for the existing detailed reference; cover both with integration tests.
