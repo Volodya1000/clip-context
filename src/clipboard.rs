@@ -21,7 +21,7 @@ pub fn copy_text(text: &str) -> io::Result<()> {
     #[cfg(target_os = "windows")]
     {
         // The command is constant; the snapshot is passed solely via stdin.
-        return write_command(
+        write_command(
             "powershell.exe",
             &[
                 "-NoProfile",
@@ -30,12 +30,12 @@ pub fn copy_text(text: &str) -> io::Result<()> {
                 "[Console]::InputEncoding = [System.Text.UTF8Encoding]::new($false); Set-Clipboard -Value ([Console]::In.ReadToEnd())",
             ],
             text,
-        );
+        )
     }
 
     #[cfg(target_os = "linux")]
     {
-        return copy_linux(text);
+        copy_linux(text)
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "windows")))]

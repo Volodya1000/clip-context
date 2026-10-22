@@ -2,7 +2,7 @@
 
 mod support;
 
-use std::process::{Command, Output};
+use std::process::Command;
 
 use support::Fixture;
 
@@ -16,7 +16,7 @@ fn clipboard_mode_rejects_invalid_projects_without_emitting_content() {
         .expect("binary must run");
 
     assert!(!result.status.success());
-    assert!(result.stdout.is_empty());
+    assert_eq!(result.stdout, Vec::<u8>::new());
 }
 
 #[test]
@@ -31,7 +31,7 @@ fn clipboard_mode_rejects_suspected_credentials_before_backend_invocation() {
         .expect("binary must run");
 
     assert!(!result.status.success());
-    assert!(result.stdout.is_empty());
+    assert_eq!(result.stdout, Vec::<u8>::new());
     assert!(!String::from_utf8_lossy(&result.stderr).contains(&synthetic_token));
 }
 
@@ -106,7 +106,7 @@ mod linux {
 
         let result = execute_in_session(&fixture, "-c", true, false, &[]);
         assert!(result.status.success());
-        assert!(result.stdout.is_empty());
+        assert_eq!(result.stdout, Vec::<u8>::new());
         assert_eq!(captured(&fixture).as_bytes(), expected.stdout);
     }
 
@@ -132,7 +132,7 @@ mod linux {
 
         let result = execute_in_session(&fixture, "-c", false, true, &[]);
         assert!(result.status.success());
-        assert!(result.stdout.is_empty());
+        assert_eq!(result.stdout, Vec::<u8>::new());
         assert!(captured(&fixture).contains("X11 captured context"));
     }
 
@@ -165,7 +165,7 @@ mod linux {
 
         let result = execute_in_session(&fixture, "-c", true, false, &[]);
         assert!(!result.status.success());
-        assert!(result.stdout.is_empty());
+        assert_eq!(result.stdout, Vec::<u8>::new());
         assert!(
             !String::from_utf8_lossy(&result.stderr).contains("confidential snapshot contents")
         );
@@ -179,7 +179,7 @@ mod linux {
         let result = execute_in_session(&fixture, "-c", false, false, &[]);
 
         assert!(!result.status.success());
-        assert!(result.stdout.is_empty());
+        assert_eq!(result.stdout, Vec::<u8>::new());
         assert!(!fixture.path().join("captured.md").exists());
     }
 
@@ -192,7 +192,7 @@ mod linux {
 
         let result = execute_in_session(&fixture, "-c", true, true, &[]);
         assert!(!result.status.success());
-        assert!(result.stdout.is_empty());
+        assert_eq!(result.stdout, Vec::<u8>::new());
         assert!(!fixture.path().join("captured.md").exists());
     }
 
@@ -204,7 +204,7 @@ mod linux {
         let result = execute_in_session(&fixture, "-c", true, false, &["--max-bytes", "1"]);
 
         assert!(!result.status.success());
-        assert!(result.stdout.is_empty());
+        assert_eq!(result.stdout, Vec::<u8>::new());
         assert!(!fixture.path().join("captured.md").exists());
     }
 }
