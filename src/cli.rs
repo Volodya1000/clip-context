@@ -1,7 +1,7 @@
 //! Parsing CLI file-selection flags and resolving their precedence.
 
 use std::ffi::{OsStr, OsString};
-use std::io;
+use std::io::{self, Write};
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -9,7 +9,7 @@ use std::process::ExitCode;
 use clip_context::profile::{DEFAULT_CONFIG_FILE, load_profile};
 use clip_context::remote::collect_remote_project_with_selection;
 use clip_context::snapshot::{
-    SelectionOptions, SnapshotLimits, collect_project_with_options_and_limits,
+    ContextFormat, SelectionOptions, SnapshotLimits, collect_project_with_options_and_limits,
 };
 
 #[derive(Default)]
@@ -20,6 +20,7 @@ struct SelectionArguments {
     excluded_directories: Vec<String>,
     limits: SnapshotLimits,
     ssh_destination: Option<String>,
+    format: ContextFormat,
 }
 
 pub fn run_snapshot(mode: &OsStr, path: &OsStr, flags: &[OsString]) -> ExitCode {
@@ -53,17 +54,25 @@ pub fn run_snapshot(mode: &OsStr, path: &OsStr, flags: &[OsString]) -> ExitCode 
     };
     match snapshot_result {
         Ok(snapshot) => {
+            let rendered = if mode == "--tree" || mode == "-t" {
+                snapshot.tree()
+            } else {
+                snapshot.to_markdown_with_format(arguments.format)
+            };
             if mode == "--clipboard" || mode == "-c" {
-                if let Err(error) = crate::clipboard::copy_text(&snapshot.to_markdown()) {
+                if let Err(error) = crate::clipboard::copy_text(&rendered) {
                     eprintln!("Clipboard error: {error}");
                     return ExitCode::from(1);
                 }
                 eprintln!("Project context copied to clipboard.");
-            } else if mode == "--tree" || mode == "-t" {
-                print!("{}", snapshot.tree());
             } else {
-                print!("{}", snapshot.to_markdown());
+                let mut stdout = io::stdout().lock();
+                if let Err(error) = stdout.write_all(rendered.as_bytes()).and_then(|()| stdout.flush()) {
+                    eprintln!("Output error: {error}");
+                    return ExitCode::from(1);
+                }
             }
+            eprintln!("{}", crate::stats::OutputStats::from_utf8(&rendered));
             ExitCode::SUCCESS
         }
         Err(error) => {
@@ -102,6 +111,13 @@ fn parse_selection(flags: &[OsString]) -> Result<SelectionArguments, &'static st
             }
             "--ssh" if arguments.ssh_destination.is_none() && !value.is_empty() => {
                 arguments.ssh_destination = Some(value.to_owned());
+            }
+            "--format" => {
+                arguments.format = match value {
+                    "full" => ContextFormat::Full,
+                    "compact" => ContextFormat::Compact,
+                    _ => return Err("--format must be full or compact."),
+                };
             }
             "--max-bytes" => {
                 let limit: NonZeroUsize = value

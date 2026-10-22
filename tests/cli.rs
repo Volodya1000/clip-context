@@ -78,7 +78,9 @@ fn stdout_command_prints_project_context() {
 
     let output = execute_on_project("--stdout", &fixture);
     assert!(output.status.success());
-    assert_eq!(output.stderr, Vec::<u8>::new());
+    let stats = String::from_utf8_lossy(&output.stderr);
+    assert!(stats.contains("Context: "));
+    assert!(stats.contains("tokens (estimated)"));
     let body = String::from_utf8(output.stdout).expect("stdout must be UTF-8");
     assert!(body.contains("code.py"));
     assert!(body.contains("print('hello')"));

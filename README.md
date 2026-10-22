@@ -13,6 +13,7 @@ cargo install --locked --path .
 cpctx -t .
 cpctx -s .
 cpctx -s . --ext rs --ext toml
+cpctx -c . --format compact
 cpctx -s . --exclude-dir generated
 cpctx -s . --profile backend
 cpctx -s . --profile backend --ext py
@@ -27,6 +28,48 @@ cargo test --locked --all-targets --all-features
 - `--exclude-dir NAME` can be repeated to exclude directories by name at every depth, in addition to built-in exclusions.
 
 Root and nested `.gitignore` files determine which files are included. Negated patterns (`!file`) work, including outside Git repositories. Ignore files from parent directories, global Git settings and `.git/info/exclude` are deliberately not read, so results only depend on the chosen root. CLI exclusions, hidden-file rules, and built-in generated-directory exclusions always take precedence over an unignore rule.
+
+## Context output formats and diagnostics
+
+By default, `-s` and `-c` retain the full Markdown report, which includes the
+directory tree followed by every selected file. The tree repeats paths that
+already appear in the file headings, especially for projects with many tiny
+files. Use `--format compact` to omit the duplicate tree and shorten headings
+without dropping source contents or path attribution:
+
+```sh
+cpctx -s . --format compact
+cpctx -c . --format compact
+cpctx -s /srv/project --ssh dev@server --format compact
+```
+
+`--format full` explicitly restores the default. `-t` is already tree-only,
+so `--format` does not change tree output. Code fences in compact Markdown
+still adapt to backticks in the original file content.
+
+Successful collection prints a short English diagnostic to **stderr**:
+
+```text
+Context: 12.4 KiB (12700 bytes) | ~3175 tokens (estimated)
+```
+
+The byte count measures the **exact rendered UTF-8 output** (`-s` text, `-t`
+tree or `-c` clipboard payload), not process RAM usage. The rough token
+estimate is `ceil(bytes / 4)`, computed in constant time once the output is
+rendered. Actual tokenizer results vary with model, programming language and
+Unicode, so this is for quick planning, not a guaranteed context-window count.
+No stats are printed on failed collection or clipboard operations.
+
+The diagnostic is **never embedded** in the report or clipboard. Redirect
+stdout to save clean context while still seeing stats in the terminal:
+
+```sh
+cpctx -s . --format compact > project-context.md
+```
+
+Compact Markdown usually saves the most on repositories with many small files;
+source code itself remains unchanged, so savings vary by project. Neither
+format compresses, summarizes or silently drops source code.
 
 ## Named selection profiles
 
@@ -116,7 +159,9 @@ Every PR must follow Conventional Commits naming and change `CHANGELOG.md`. See 
 5. Selected credential signatures and bounded source budgets (this PR).
 6. OS clipboard output on Windows/Linux (this PR); improved detection and final-output limits remain future work.
 7. SSH remote collection without installing cpctx on servers (this PR).
-8. Improved server-side prefiltering and packaging for larger repositories (planned).
+8. Context output metrics and compact Markdown (implemented).
+9. Improved server-side prefiltering and packaging for larger repositories (planned).
+10. Expanded `cpctx --help` reference (tracked in issue #14).
 
 ## License
 

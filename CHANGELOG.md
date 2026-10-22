@@ -6,6 +6,9 @@ All notable changes to this project are documented here. Every pull request must
 
 ### Added
 
+- Print exact rendered UTF-8 context bytes and fast approximate token counts to stderr after successful stdout/tree/clipboard output.
+- Add `--format compact` to remove the duplicate file tree and shorten Markdown file headers while preserving source files; default full format remains unchanged.
+
 - Support SSH collection from POSIX servers without installing cpctx remotely, using bounded tar archives and local filtering, safety checks and clipboard output.
 
 - Add `cpctx -c PATH` / `--clipboard PATH` to copy a validated Markdown snapshot using Windows PowerShell or native Linux clipboard utilities, without printing source text.

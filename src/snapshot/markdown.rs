@@ -2,15 +2,37 @@
 
 use super::Snapshot;
 
+/// How selected source files are presented in Markdown.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ContextFormat {
+    /// Existing detailed format with a directory tree and file headers.
+    #[default]
+    Full,
+    /// Token-lean format without the repeated directory tree.
+    Compact,
+}
+
 impl Snapshot {
     /// Markdown with the project tree and source text for every selected file.
     #[must_use]
     pub fn to_markdown(&self) -> String {
-        let mut output = format!(
-            "Project: {}\n\n## File tree\n\n```text\n{}```\n",
-            self.project_name,
-            self.tree()
-        );
+        self.to_markdown_with_format(ContextFormat::Full)
+    }
+
+    /// Render the complete source snapshot in the requested Markdown format.
+    ///
+    /// Compact output omits the redundant directory tree and shortens per-file
+    /// headers. Both formats retain every selected file and its original text.
+    #[must_use]
+    pub fn to_markdown_with_format(&self, format: ContextFormat) -> String {
+        let mut output = match format {
+            ContextFormat::Full => format!(
+                "Project: {}\n\n## File tree\n\n```text\n{}```\n",
+                self.project_name,
+                self.tree()
+            ),
+            ContextFormat::Compact => format!("Project: {}\n", self.project_name),
+        };
 
         for file in &self.files {
             let path = file
@@ -20,7 +42,10 @@ impl Snapshot {
                 .collect::<Vec<_>>()
                 .join("/");
             let fence = "`".repeat(longest_backtick_run(&file.content).saturating_add(1).max(3));
-            output.push_str("\n### File: ");
+            match format {
+                ContextFormat::Full => output.push_str("\n### File: "),
+                ContextFormat::Compact => output.push_str("\n## "),
+            }
             output.push_str(&path);
             output.push_str("\n\n");
             output.push_str(&fence);
