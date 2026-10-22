@@ -4,6 +4,15 @@ A local-first Rust CLI for collecting source files and a filtered directory tree
 
 **Current stage:** project snapshots, file selection, nested `.gitignore`, TOML profiles, stdout and clipboard output. Exhaustive secret detection, model-specific tokenization and exact output budgets are **not yet implemented**.
 
+## Installation without Rust
+
+The forthcoming tagged GitHub Releases include a Windows x86_64 ZIP and verified
+PowerShell installer, and Linux x86_64 `.deb` and `.tar.gz` packages.
+See [installation (English)](docs/installation.md) or
+[установка (Русский)](docs/installation.ru.md). No release binaries have been
+published by this PR: build/test workflows run on pull requests; publishing
+requires a matching version tag on `main`.
+
 ## Example
 
 Requires Rust 1.85 or newer.
