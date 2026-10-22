@@ -1,0 +1,22 @@
+[package]
+name = "clip-context"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Local-first CLI for packaging project code for sharing"
+license = "MIT"
+repository = "https://github.com/Volodya1000/clip-context"
+readme = "README.md"
+keywords = ["cli", "clipboard", "developer-tools", "context"]
+categories = ["command-line-utilities", "development-tools"]
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "deny"
+unused_lifetimes = "deny"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+cargo = { level = "deny", priority = -1 }
