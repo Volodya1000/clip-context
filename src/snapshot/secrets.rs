@@ -44,8 +44,6 @@ pub fn detect_secret(content: &str) -> Option<SecretKind> {
         return Some(SecretKind::PrivateKey);
     }
 
-
-
     if PREFIXES
         .iter()
         .any(|(prefix, minimum)| has_long_token(content, prefix, *minimum))
