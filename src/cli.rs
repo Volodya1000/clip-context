@@ -40,7 +40,13 @@ pub fn run_snapshot(mode: &OsStr, path: &OsStr, flags: &[OsString]) -> ExitCode 
 
     match collect_project_with_options_and_limits(root, &options, &arguments.limits) {
         Ok(snapshot) => {
-            if mode == "--tree" || mode == "-t" {
+            if mode == "--clipboard" || mode == "-c" {
+                if let Err(error) = crate::clipboard::copy_text(&snapshot.to_markdown()) {
+                    eprintln!("Clipboard error: {error}");
+                    return ExitCode::from(1);
+                }
+                eprintln!("Project context copied to clipboard.");
+            } else if mode == "--tree" || mode == "-t" {
                 print!("{}", snapshot.tree());
             } else {
                 print!("{}", snapshot.to_markdown());
