@@ -88,7 +88,11 @@ impl Snapshot {
                 .collect::<Vec<_>>()
                 .join("/");
             let fence = "`".repeat(longest_backtick_run(&file.content).saturating_add(1).max(3));
-            output.push_str(&format!("\n### File: {path}\n\n{fence}\n"));
+            output.push_str("\n### File: ");
+            output.push_str(&path);
+            output.push_str("\n\n");
+            output.push_str(&fence);
+            output.push('\n');
             output.push_str(&file.content);
             if !file.content.ends_with('\n') {
                 output.push('\n');
