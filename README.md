@@ -14,7 +14,7 @@ cargo test --locked --all-targets --all-features
 
 ## Quality gates
 
-The CI runs rustfmt, strict Clippy (`all`, `pedantic`, `nursery`, `cargo`), tests on Windows/Linux, rustdoc, MSRV compilation, coverage, cargo-deny, TOML/YAML hygiene, workflow linters, PR and commit naming checks, and secret scanning.
+The CI runs rustfmt, strict Clippy (`all`, `pedantic`, `nursery`, `cargo`), tests on Windows/Linux, rustdoc, MSRV compilation, coverage, cargo-deny, TOML/YAML hygiene, workflow linters, Conventional Commits verification via Cocogitto, PR titles via a dedicated GitHub Action, changelog checks, and secret scanning.
 
 Every PR must follow Conventional Commits naming and change `CHANGELOG.md`. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
