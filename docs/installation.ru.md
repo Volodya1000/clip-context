@@ -47,6 +47,23 @@ cpctx --help
 проверьте контрольную сумму соответствующего файла, распакуйте и установите:
 
 ```sh
+grep 'linux-x86_64.tar.gz
+sudo install -m 755 cpctx /usr/local/bin/cpctx
+cpctx --version
+```
+
+`/usr/local/bin` обычно входит в `PATH`. Есть и
+[установочный скрипт](../scripts/install.sh): после проверки содержимого
+запустите `sudo sh scripts/install.sh vX.Y.Z`. Скрипт проверяет SHA-256
+и помещает программу в `/usr/local/bin`.
+
+## Для выпускающего релиз
+
+Сначала пройдут CI и ручная приёмка на обеих системах. После этого создаётся
+тег вида `vX.Y.Z`, указывающий на коммит `main` и совпадающий с
+`Cargo.toml`. Только запуск по тегу публикует настоящие активы релиза;
+запуск по pull request или вручную только собирает и проверяет пакеты.
+ SHA256SUMS.txt | sha256sum -c -
 tar -xzf cpctx-vX.Y.Z-linux-x86_64.tar.gz
 sudo install -m 755 cpctx /usr/local/bin/cpctx
 cpctx --version
