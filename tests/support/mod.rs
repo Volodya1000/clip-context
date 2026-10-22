@@ -7,12 +7,12 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 static NEXT: AtomicU64 = AtomicU64::new(0);
 
-pub(crate) struct Fixture {
+pub struct Fixture {
     path: PathBuf,
 }
 
 impl Fixture {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         let unique = NEXT.fetch_add(1, Ordering::Relaxed);
         let path = env::temp_dir().join(format!(
             "clip-context-fixture-{}-{unique}",
@@ -22,11 +22,11 @@ impl Fixture {
         Self { path }
     }
 
-    pub(crate) fn path(&self) -> &Path {
+    pub fn path(&self) -> &Path {
         &self.path
     }
 
-    pub(crate) fn file(&self, path: &str, content: &str) {
+    pub fn file(&self, path: &str, content: &str) {
         let full_path = self.path.join(path);
         let parent = full_path
             .parent()

@@ -137,7 +137,7 @@ fn empty_project_produces_a_valid_empty_snapshot() {
     fixture.file("image.png", "binary placeholder");
 
     let snapshot = collect_project(fixture.path()).expect("the project should be readable");
-    assert!(snapshot.files().is_empty());
+    assert_eq!(snapshot.files(), &[]);
     assert!(snapshot.tree().ends_with("/\n"));
     assert!(snapshot.to_markdown().contains("## File tree"));
 }

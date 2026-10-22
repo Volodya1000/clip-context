@@ -119,7 +119,7 @@ fn invalid_project_path_fails_for_tree_mode_too() {
         .output()
         .expect("the CLI must be runnable");
     assert!(!output.status.success());
-    assert!(output.stdout.is_empty());
+    assert_eq!(output.stdout, Vec::<u8>::new());
 }
 
 #[test]
@@ -142,5 +142,5 @@ fn a_file_with_invalid_utf8_produces_no_output() {
 
     let output = execute_on_project("--stdout", &fixture);
     assert!(!output.status.success());
-    assert!(output.stdout.is_empty());
+    assert_eq!(output.stdout, Vec::<u8>::new());
 }
