@@ -13,6 +13,10 @@ cargo deny check
 
 CI additionally checks coverage, minimum supported Rust version, dependency security, workflows, files and metadata.
 
+See [main branch protection](docs/main-protection.md) for the exact required
+checks, ruleset payload, owner setup and negative enforcement test. Repository
+CI configuration alone does not prove that GitHub blocks a failing merge.
+
 ## Release workflow
 
 `.github/workflows/release.yml` orchestrates three jobs: Linux, Windows and

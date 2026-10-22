@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Every pull request must
 
 ### Added
 
+- Document the exact main-branch ruleset, required checks, no-bypass policy and a reproducible negative enforcement test; record that administration access is still required to apply it.
+
 - Prefilter known generated and hidden cache directories on SSH servers using supported tar exclude patterns, with automatic fallback for POSIX tar implementations without exclusions.
 
 - Build and smoke-test Windows/Linux release archives and an installable Debian package; verify SHA-256 assets, allow opt-in Windows user PATH installation, and publish only on verified version tags.
