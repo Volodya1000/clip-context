@@ -4,10 +4,17 @@ set -euo pipefail
 sha="${1:?release commit SHA required}"
 [[ "$sha" =~ ^[0-9a-f]{40}$ ]]
 script_dir="$(cd -- "$(dirname -- "$0")" && pwd)"
+# PR checks may compile a synthetic merge commit. Require suites from push runs
+# for this exact SHA; package suites come from the version-tag push itself.
+suites="$(
+  gh api --paginate "repos/${GITHUB_REPOSITORY:?}/actions/runs?head_sha=$sha&event=push&per_page=100" |
+    jq --slurp --arg sha "$sha" \
+      '[.[].workflow_runs[]? | select(.event == "push" and .head_sha == $sha) | .check_suite_id] | unique'
+)"
 blocked="$(
   gh api --paginate "repos/${GITHUB_REPOSITORY:?}/commits/$sha/check-runs?per_page=100" |
     jq --slurp --slurpfile required "$script_dir/required-checks.json" \
-      --arg sha "$sha" --from-file "$script_dir/checks.jq"
+      --arg sha "$sha" --argjson suites "$suites" --from-file "$script_dir/checks.jq"
 )"
 if ! jq --exit-status 'length == 0' <<< "$blocked" >/dev/null; then
   printf 'Refusing release: required checks for %s are missing, pending or failed.\n' "$sha" >&2

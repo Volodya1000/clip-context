@@ -45,7 +45,10 @@ exact tagged SHA. Every name in `scripts/release/required-checks.json` must have
 a **latest completed successful check from GitHub Actions app 15368** for that
 SHA. A stale success cannot override a newer failure. The gate includes both
 native acceptance jobs, security, coverage, compilers and package checks.
-Only the publish job receives `contents: write` and `checks: read`.
+Only the publish job receives `contents: write`, `checks: read` and `actions: read`.
+Accepted check suites must belong to `push` workflow runs for that exact SHA;
+PR-only checks cannot substitute, because a PR run can compile a synthetic merge
+commit. The tag-triggered package suites are also push runs for the tagged SHA.
 
 Conventional Commits and changelog checks apply to PRs, not post-merge commits;
 they belong in the branch ruleset and are not accepted as skipped substitutes
