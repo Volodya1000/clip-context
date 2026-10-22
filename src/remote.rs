@@ -201,15 +201,7 @@ fn remote_tar_command(remote_path: &str) -> String {
     // Every prefiltered directory is already excluded by the local collector.
     // These patterns must never omit .gitignore or .cpctx.toml: both are
     // required locally for correct selection and profile resolution.
-    const HIDDEN_GENERATED: &[&str] = &[
-        ".git",
-        ".venv",
-        ".idea",
-        ".vscode",
-        ".mypy_cache",
-        ".pytest_cache",
-        ".tox",
-    ];
+    const HIDDEN_GENERATED: &[&str] = &[".git", ".venv", ".mypy_cache", ".pytest_cache", ".tox"];
     let mut flags = String::new();
     for name in BUILTIN_EXCLUDED_DIRECTORIES.iter().chain(HIDDEN_GENERATED) {
         flags.push_str(" --exclude=");

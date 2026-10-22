@@ -50,6 +50,19 @@ extensions = ["md"]
 
 Run `cpctx -s . --profile docs`, or supply another file with `--config settings/profiles.toml --profile docs`. A CLI `--ext` **replaces** profile extensions; `--exclude-dir` **adds** exclusions. Root and nested `.gitignore` rules, hidden paths and built-in exclusions still apply.
 
+Select exact paths or quoted globs, including extensionless files:
+
+```sh
+cpctx -s . --include 'src/**' --include Dockerfile --exclude '**/*.generated.rs'
+cpctx -s . --include '.github/workflows/*.yml' --include Makefile
+```
+
+Include globs replace the default extension list; explicit CLI/profile extensions
+further narrow matches. CLI globs append to profile `include`/`exclude` arrays;
+exclusions and `.gitignore` always win. Hidden paths require a literal include
+prefix. `.git`, `.env*`, credential directories and standard SSH private-key
+names remain protected. Quote patterns so your shell does not expand them.
+
 ## Output size and format
 
 Use `--format compact` to keep all selected files but omit the repeated directory tree. The default `--format full` includes it. `-t` always produces only a tree.

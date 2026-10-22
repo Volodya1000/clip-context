@@ -1,7 +1,7 @@
 //! Strict, typed TOML configuration of named file-selection profiles.
 //!
-//! Profiles only narrow file selection. Built-in exclusions and `.gitignore`
-//! rules remain active when a named profile is selected.
+//! Profiles select extensions or explicit path globs. Built-in exclusions and
+//! `.gitignore` rules remain active when a named profile is selected.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -28,6 +28,10 @@ struct Profile {
     extensions: Vec<String>,
     #[serde(default)]
     exclude_directories: Vec<String>,
+    #[serde(default)]
+    include: Vec<String>,
+    #[serde(default)]
+    exclude: Vec<String>,
 }
 
 /// Read a named profile from a TOML document into the shared selection model.
@@ -82,6 +86,12 @@ pub fn load_profile(config_file: &Path, profile_name: &str) -> io::Result<Select
             ));
         }
         options.exclude_directory(name);
+    }
+    for pattern in &profile.include {
+        options.include_pattern(pattern)?;
+    }
+    for pattern in &profile.exclude {
+        options.exclude_pattern(pattern)?;
     }
     Ok(options)
 }

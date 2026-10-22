@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Every pull request must
 
 ### Added
 
+- Add project-relative include/exclude globs in CLI and profiles, extensionless file selection and explicit safe hidden-configuration prefixes; retain Git ignores, credential checks and protected-path exclusions.
+
 - Add live Linux X11/Wayland, Windows PowerShell clipboard and real SSH acceptance scripts and CI evidence artifacts, with an explicit table of completed and pending release gates.
 - Cover every credential-prefix length boundary, embedded private-key markers, typed credential literals and safe environment references; document the detector threat model and an ordinary-export performance measurement.
 

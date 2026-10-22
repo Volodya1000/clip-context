@@ -9,6 +9,8 @@ Options:
   --format full|compact     Full Markdown or compact output (default: full)
   --ext EXT                 Include extension; repeatable (e.g. rs, py)
   --exclude-dir NAME        Exclude directory by name; repeatable
+  --include GLOB            Select paths, including extensionless files
+  --exclude GLOB            Exclude matching paths; repeatable
   --profile NAME            Use named selection profile from .cpctx.toml
   --config FILE             Override profile file (requires --profile)
   --ssh HOST                Read a remote PATH through SSH

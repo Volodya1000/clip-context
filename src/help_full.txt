@@ -23,6 +23,12 @@ Output formats:
                          -t always writes the tree; --format does not change it.
 
 Selection:
+  --include GLOB         Select matching project-relative paths (repeatable).
+                         Replaces default extension selection; explicit --ext
+                         or profile extensions further narrow matching files.
+                         Quote globs to prevent expansion by your shell.
+  --exclude GLOB         Exclude matching paths (repeatable); exclusions win.
+                         Both flags use gitignore-style globs without ! negation.
   --ext EXT              Select only extensions given on the CLI (repeatable).
                          Use names without a dot, for example --ext rs --ext py.
                          Extensions are matched case-insensitively.
@@ -35,7 +41,11 @@ Selection:
   (build, dist, node_modules, target, venv, __pycache__) are excluded.
   Root and nested .gitignore rules are honored, including ! negations.
   Parent/global Git ignores and .git/info/exclude are not read.
-  Explicit/built-in exclusions and hidden-path rules override unignore patterns.
+  A literal include prefix can open hidden configuration, for example
+  --include '.github/workflows/*.yml' or --include .editorconfig.
+  Broad globs never implicitly include hidden paths. .git, .env*, .ssh, .aws,
+  .kube and standard SSH private-key names remain excluded even when included.
+  Explicit/built-in exclusions override unignore patterns.
 
 Profiles:
   --profile NAME         Load a named profile from .cpctx.toml (optional; once).
@@ -44,8 +54,11 @@ Profiles:
   Profiles are opt-in and contain [profiles.NAME] with optional arrays:
     extensions = ["rs", "toml"]
     exclude_directories = ["generated"]
+    include = ["src/**", "Dockerfile"]
+    exclude = ["**/*.generated.rs"]
   --ext replaces the profile's extension list (it does not append).
   --exclude-dir adds exclusions to the profile; built-in exclusions still apply.
+  CLI include/exclude globs append to profile globs; exclusions always win.
   Invalid profile values, unknown keys and missing profiles cause an error.
 
 Safety limits:

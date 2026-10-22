@@ -21,6 +21,8 @@ struct SelectionArguments {
     config_file: Option<PathBuf>,
     extensions: Vec<String>,
     excluded_directories: Vec<String>,
+    includes: Vec<String>,
+    excludes: Vec<String>,
     limits: SnapshotLimits,
     ssh_destination: Option<String>,
     format: ContextFormat,
@@ -116,6 +118,17 @@ fn parse_selection(flags: &[OsString]) -> Result<SelectionArguments, String> {
         let value: &str = pair[1].to_str().ok_or("Option values must be UTF-8.")?;
 
         match flag {
+            "--include" | "--exclude" => {
+                let mut validation = SelectionOptions::default();
+                validation
+                    .include_pattern(value)
+                    .map_err(|error| error.to_string())?;
+                if flag == "--include" {
+                    arguments.includes.push(value.to_owned());
+                } else {
+                    arguments.excludes.push(value.to_owned());
+                }
+            }
             "--ext" => {
                 if !SelectionOptions::valid_extension(value) {
                     return Err(
@@ -221,6 +234,12 @@ fn resolve_selection(root: &Path, args: &SelectionArguments) -> io::Result<Selec
     }
     for name in &args.excluded_directories {
         options.exclude_directory(name);
+    }
+    for pattern in &args.includes {
+        options.include_pattern(pattern)?;
+    }
+    for pattern in &args.excludes {
+        options.exclude_pattern(pattern)?;
     }
 
     Ok(options)

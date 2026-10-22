@@ -116,3 +116,17 @@ cpctx -c PATH [OPTIONS]    Скопировать в локальный буфе
 Для разработки: `cargo test --locked --all-targets --all-features`. Правила оформления PR и CI см. в [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Лицензия [MIT](LICENSE).
+
+## Явный выбор путей
+
+```sh
+cpctx -s . --include 'src/**' --include Dockerfile --exclude '**/*.generated.rs'
+cpctx -s . --include '.github/workflows/*.yml' --include Makefile
+```
+
+Glob-шаблоны include заменяют список расширений по умолчанию; явно заданные
+расширения CLI/профиля дополнительно сужают выбор. CLI-шаблоны добавляются к
+массивам `include`/`exclude` профиля. Исключения и `.gitignore` всегда действуют.
+Для скрытых конфигураций нужен явный префикс пути; `.git`, `.env*`, каталоги
+учётных данных и стандартные имена закрытых SSH-ключей остаются исключёнными.
+Шаблоны нужно заключать в кавычки, чтобы оболочка не раскрывала их заранее.

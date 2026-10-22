@@ -7,14 +7,15 @@ use std::path::Path;
 
 use ignore::{DirEntry, WalkBuilder};
 
-use super::filter::{self, SelectionOptions};
+use super::filter::{SelectionOptions, SelectionRules};
 use super::safety::SnapshotLimits;
 use super::secrets::detect_secret;
 use super::{Snapshot, SourceFile};
 
 /// Read eligible project files, respecting nested `.gitignore` rules.
 ///
-/// Hidden paths, common generated directories and symbolic links are excluded.
+/// Hidden paths, common generated directories and symbolic links are excluded
+/// by default; explicit include prefixes can select safe hidden configuration.
 /// Git ignore rules, including negated patterns, are applied inside the root
 /// even when the directory is not itself a Git checkout. Parent and global
 /// ignore files are deliberately not read.
@@ -29,8 +30,8 @@ pub fn collect_project(root: &Path) -> io::Result<Snapshot> {
 
 /// Read project files respecting nested Git ignore rules and selection options.
 ///
-/// Custom exclusions only remove more files; explicit extensions replace the
-/// default extension list but do not override ignored or hidden paths.
+/// Custom exclusions only remove more files. Include globs can select safe
+/// extensionless/hidden configuration; `.gitignore` and protected paths win.
 ///
 /// # Errors
 ///
@@ -105,8 +106,9 @@ fn collect_with_contents(
         .hidden(false)
         .follow_links(false)
         .filter_entry({
-            let options = options.clone();
-            move |entry| is_included_entry(entry, &options)
+            let rules = SelectionRules::new(root, options)?;
+            let root = root.to_path_buf();
+            move |entry| is_included_entry(entry, &root, &rules)
         });
 
     let mut files = Vec::new();
@@ -116,7 +118,7 @@ fn collect_with_contents(
         let Some(kind) = entry.file_type() else {
             continue;
         };
-        if !kind.is_file() || !filter::has_supported_extension(entry.path(), options) {
+        if !kind.is_file() {
             continue;
         }
 
@@ -156,7 +158,7 @@ fn collect_with_contents(
     })
 }
 
-fn is_included_entry(entry: &DirEntry, options: &SelectionOptions) -> bool {
+fn is_included_entry(entry: &DirEntry, root: &Path, rules: &SelectionRules) -> bool {
     if entry.depth() == 0 {
         return true;
     }
@@ -164,11 +166,14 @@ fn is_included_entry(entry: &DirEntry, options: &SelectionOptions) -> bool {
     let Some(kind) = entry.file_type() else {
         return false;
     };
-    if kind.is_symlink() || filter::is_hidden(entry.file_name()) {
+    if kind.is_symlink() {
         return false;
     }
-
-    !kind.is_dir() || filter::includes_directory(entry.file_name(), options)
+    entry.path().strip_prefix(root).is_ok_and(|relative| {
+        rules
+            .exclusion(entry.path(), relative, kind.is_dir())
+            .is_none()
+    })
 }
 
 /// Read at most `remaining` bytes to avoid allocations when the eventual
