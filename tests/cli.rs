@@ -33,7 +33,7 @@ fn help_is_available() {
 fn no_arguments_displays_usage() {
     let output = execute(&[]);
     assert!(output.status.success());
-    assert!(!output.stdout.is_empty());
+    assert_ne!(output.stdout, Vec::<u8>::new());
 }
 
 #[test]
@@ -78,7 +78,7 @@ fn stdout_command_prints_project_context() {
 
     let output = execute_on_project("--stdout", &fixture);
     assert!(output.status.success());
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr, Vec::<u8>::new());
     let body = String::from_utf8(output.stdout).expect("stdout must be UTF-8");
     assert!(body.contains("code.py"));
     assert!(body.contains("print('hello')"));
@@ -105,8 +105,8 @@ fn missing_project_path_does_not_produce_partial_stdout() {
         .output()
         .expect("the CLI must be runnable");
     assert!(!output.status.success());
-    assert!(output.stdout.is_empty());
-    assert!(!output.stderr.is_empty());
+    assert_eq!(output.stdout, Vec::<u8>::new());
+    assert_ne!(output.stderr, Vec::<u8>::new());
 }
 
 #[test]
@@ -138,8 +138,7 @@ fn unknown_extra_arguments_fail() {
 fn a_file_with_invalid_utf8_produces_no_output() {
     let fixture = Fixture::new();
     fixture.file("a.py", "valid");
-    std::fs::write(fixture.path().join("b.rs"), [0xff])
-        .expect("fixture file must be writable");
+    std::fs::write(fixture.path().join("b.rs"), [0xff]).expect("fixture file must be writable");
 
     let output = execute_on_project("--stdout", &fixture);
     assert!(!output.status.success());

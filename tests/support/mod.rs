@@ -28,7 +28,9 @@ impl Fixture {
 
     pub(crate) fn file(&self, path: &str, content: &str) {
         let full_path = self.path.join(path);
-        let parent = full_path.parent().expect("fixtures have parent directories");
+        let parent = full_path
+            .parent()
+            .expect("fixtures have parent directories");
         fs::create_dir_all(parent).expect("fixture parent directory must exist");
         fs::write(full_path, content).expect("fixture file must be writable");
     }

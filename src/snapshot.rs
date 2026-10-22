@@ -10,8 +10,8 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 const DEFAULT_EXTENSIONS: &[&str] = &[
-    "c", "cpp", "cs", "css", "go", "h", "hpp", "html", "java", "js", "json", "kt", "md", "py", "rs",
-    "sh", "sql", "toml", "ts", "tsx", "txt", "yaml", "yml",
+    "c", "cpp", "cs", "css", "go", "h", "hpp", "html", "java", "js", "json", "kt", "md", "py",
+    "rs", "sh", "sql", "toml", "ts", "tsx", "txt", "yaml", "yml",
 ];
 
 const EXCLUDED_DIRECTORIES: &[&str] = &[
@@ -74,7 +74,11 @@ impl Snapshot {
     /// Markdown with the project tree and source text for every selected file.
     #[must_use]
     pub fn to_markdown(&self) -> String {
-        let mut output = format!("Project: {}\n\n## File tree\n\n```text\n{}```\n", self.project_name, self.tree());
+        let mut output = format!(
+            "Project: {}\n\n## File tree\n\n```text\n{}```\n",
+            self.project_name,
+            self.tree()
+        );
 
         for file in &self.files {
             let path = file

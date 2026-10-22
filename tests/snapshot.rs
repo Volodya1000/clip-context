@@ -43,7 +43,14 @@ fn excludes_hidden_directories_and_files() {
 #[test]
 fn omits_common_generated_directories_without_losing_underscored_sources() {
     let fixture = Fixture::new();
-    for directory in ["target", "dist", "build", "venv", "node_modules", "__pycache__"] {
+    for directory in [
+        "target",
+        "dist",
+        "build",
+        "venv",
+        "node_modules",
+        "__pycache__",
+    ] {
         fixture.file(&format!("{directory}/unwanted.py"), "not included");
     }
     fixture.file("_domain/model.py", "model");
@@ -188,11 +195,7 @@ fn symbolic_links_are_not_followed() {
         fixture.path().join("shortcut.py"),
     )
     .expect("test symlink must be created");
-    symlink(
-        fixture.path(),
-        fixture.path().join("loop"),
-    )
-    .expect("test symlink must be created");
+    symlink(fixture.path(), fixture.path().join("loop")).expect("test symlink must be created");
 
     let snapshot = collect_project(fixture.path()).expect("the project should be readable");
     assert_eq!(snapshot.files().len(), 1);

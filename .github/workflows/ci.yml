@@ -137,6 +137,7 @@ jobs:
         uses: cocogitto/cocogitto-action@390bda87a19bf627e03ad075c67a11e9ddbb7547  # v4
         with:
           command: check
+          args: ${{ github.event.pull_request.base.sha }}..HEAD
       - name: Validate pull request title
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
