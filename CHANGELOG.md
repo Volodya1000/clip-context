@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Every pull request must
 
 ### Added
 
+- Expand `cpctx --help`/`-h` into a structured, English CLI reference with examples, defaults, safety and SSH notes; add precise invalid-option diagnostics and integration coverage.
+
 - Print exact rendered UTF-8 context bytes and fast approximate token counts to stderr after successful stdout/tree/clipboard output.
 - Add `--format compact` to remove the duplicate file tree and shorten Markdown file headers while preserving source files; default full format remains unchanged.
 
