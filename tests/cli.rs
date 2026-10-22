@@ -30,6 +30,81 @@ fn help_is_available() {
 }
 
 #[test]
+fn help_is_a_complete_bounded_terminal_reference() {
+    let long = execute(&["--help"]);
+    let short = execute(&["-h"]);
+    assert!(long.status.success());
+    assert_eq!(long.stdout, short.stdout);
+    assert!(long.stderr.is_empty());
+    assert!(short.stderr.is_empty());
+
+    let reference = String::from_utf8(long.stdout).expect("help must be UTF-8");
+    for heading in [
+        "Usage:",
+        "Output modes:",
+        "Output formats:",
+        "Selection:",
+        "Profiles:",
+        "Safety limits:",
+        "Remote SSH:",
+        "Clipboard:",
+        "Diagnostics:",
+        "Examples:",
+    ] {
+        assert!(reference.contains(heading), "missing heading: {heading}");
+    }
+    for option in [
+        "-s", "--stdout", "-t", "--tree", "-c", "--clipboard", "-h", "--help",
+        "-V", "--version", "--format", "--ext", "--exclude-dir", "--profile",
+        "--config", "--ssh", "--max-bytes", "--max-estimated-tokens",
+    ] {
+        assert!(reference.contains(option), "missing option: {option}");
+    }
+    for detail in [
+        "262144", "32000", ".gitignore", "stderr", "stdout", "16 MiB",
+        "extensions = ", "exclude_directories = ", "repeatable", "remote",
+        "cpctx -c", "cpctx -s", "cpctx -t", "replaces", "adds exclusions",
+    ] {
+        assert!(reference.contains(detail), "missing help detail: {detail}");
+    }
+    for line in reference.lines() {
+        assert!(line.chars().count() <= 100, "overwide help line: {line}");
+    }
+}
+
+#[test]
+fn invalid_cli_arguments_have_actionable_diagnostics_and_no_stdout() {
+    let fixture = Fixture::new();
+    fixture.file("src/main.rs", "never print this");
+
+    let cases: &[(&[&str], &str)] = &[
+        (&["--ext", "../rs"], "--ext requires"),
+        (&["--exclude-dir", "../src"], "--exclude-dir requires"),
+        (&["--profile", "../bad"], "--profile requires"),
+        (&["--profile", "ok", "--profile", "ok"], "--profile may"),
+        (&["--config", ""], "--config requires"),
+        (&["--profile", "ok", "--config", "a", "--config", "b"], "--config may"),
+        (&["--ssh", ""], "--ssh requires"),
+        (&["--ssh", "host", "--ssh", "other"], "--ssh may"),
+        (&["--format", "unknown"], "--format must"),
+        (&["--max-bytes", "0"], "--max-bytes must"),
+        (&["--max-estimated-tokens", "0"], "--max-estimated-tokens must"),
+        (&["--unknown", "value"], "Unknown option"),
+        (&["--config", "file.toml"], "--config requires --profile"),
+        (&["--ext"], "Missing value for --ext"),
+    ];
+    for (arguments, diagnostic) in cases {
+        let output = execute_with_flags(&fixture, arguments);
+        assert_eq!(output.status.code(), Some(2), "arguments: {arguments:?}");
+        assert!(output.stdout.is_empty(), "arguments: {arguments:?}");
+        let error = String::from_utf8(output.stderr).expect("diagnostic must be UTF-8");
+        assert!(error.contains(diagnostic), "unexpected diagnostic: {error}");
+        assert!(error.contains("Run cpctx --help."), "missing help hint: {error}");
+        assert!(!error.contains("never print this"));
+    }
+}
+
+#[test]
 fn no_arguments_displays_usage() {
     let output = execute(&[]);
     assert!(output.status.success());

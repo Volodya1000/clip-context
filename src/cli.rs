@@ -85,7 +85,7 @@ pub fn run_snapshot(mode: &OsStr, path: &OsStr, flags: &[OsString]) -> ExitCode 
     }
 }
 
-fn parse_selection(flags: &[OsString]) -> Result<SelectionArguments, &'static str> {
+fn parse_selection(flags: &[OsString]) -> Result<SelectionArguments, String> {
     let mut arguments = SelectionArguments::default();
     let mut pairs = flags.chunks_exact(2);
 
@@ -94,32 +94,56 @@ fn parse_selection(flags: &[OsString]) -> Result<SelectionArguments, &'static st
         let value: &str = pair[1].to_str().ok_or("Option values must be UTF-8.")?;
 
         match flag {
-            "--ext" if SelectionOptions::valid_extension(value) => {
+            "--ext" => {
+                if !SelectionOptions::valid_extension(value) {
+                    return Err(
+                        "--ext requires letters and digits only, without a leading dot.".into(),
+                    );
+                }
                 arguments.extensions.push(value.to_owned());
             }
-            "--exclude-dir" if SelectionOptions::valid_directory_name(value) => {
+            "--exclude-dir" => {
+                if !SelectionOptions::valid_directory_name(value) {
+                    return Err("--exclude-dir requires a single directory name, not a path.".into());
+                }
                 arguments.excluded_directories.push(value.to_owned());
             }
-            "--profile"
-                if arguments.profile.is_none()
-                    && !value.is_empty()
-                    && value.bytes().all(|character| {
+            "--profile" => {
+                if arguments.profile.is_some() {
+                    return Err("--profile may be specified only once.".into());
+                }
+                if value.is_empty()
+                    || !value.bytes().all(|character| {
                         character.is_ascii_alphanumeric() || matches!(character, b'-' | b'_')
-                    }) =>
-            {
+                    })
+                {
+                    return Err("--profile requires a name using letters, digits, '-' or '_'.".into());
+                }
                 arguments.profile = Some(value.to_owned());
             }
-            "--config" if arguments.config_file.is_none() && !value.is_empty() => {
+            "--config" => {
+                if arguments.config_file.is_some() {
+                    return Err("--config may be specified only once.".into());
+                }
+                if value.is_empty() {
+                    return Err("--config requires a nonempty file path.".into());
+                }
                 arguments.config_file = Some(PathBuf::from(value));
             }
-            "--ssh" if arguments.ssh_destination.is_none() && !value.is_empty() => {
+            "--ssh" => {
+                if arguments.ssh_destination.is_some() {
+                    return Err("--ssh may be specified only once.".into());
+                }
+                if value.is_empty() {
+                    return Err("--ssh requires an SSH host or user@host.".into());
+                }
                 arguments.ssh_destination = Some(value.to_owned());
             }
             "--format" => {
                 arguments.format = match value {
                     "full" => ContextFormat::Full,
                     "compact" => ContextFormat::Compact,
-                    _ => return Err("--format must be full or compact."),
+                    _ => return Err("--format must be full or compact.".into()),
                 };
             }
             "--max-bytes" => {
@@ -134,15 +158,18 @@ fn parse_selection(flags: &[OsString]) -> Result<SelectionArguments, &'static st
                     .map_err(|_error| "--max-estimated-tokens must be a positive integer.")?;
                 arguments.limits.set_max_estimated_tokens(limit);
             }
-            _ => return Err("Invalid file selection option."),
+            _ => return Err(format!("Unknown option {flag:?}.")),
         }
     }
 
-    if !pairs.remainder().is_empty() {
-        return Err("File selection options require a value.");
+    if let Some(missing_value) = pairs.remainder().first() {
+        return Err(format!(
+            "Missing value for {}.",
+            missing_value.to_string_lossy()
+        ));
     }
     if arguments.config_file.is_some() && arguments.profile.is_none() {
-        return Err("--config requires --profile.");
+        return Err("--config requires --profile.".into());
     }
 
     Ok(arguments)
