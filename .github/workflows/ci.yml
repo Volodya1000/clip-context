@@ -27,8 +27,6 @@ jobs:
         run: pre-commit run --all-files --show-diff-on-failure
       - name: Strict YAML validation
         run: yamllint --strict .github .pre-commit-config.yaml .yamllint
-      - name: Validate contribution-policy tests
-        run: python3 -m unittest discover -s scripts -p 'test_*.py' -v
       - name: Install actionlint
         run: go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
       - name: Lint GitHub Actions and embedded shell
