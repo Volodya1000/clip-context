@@ -11,7 +11,7 @@ use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use crate::snapshot::{
-    SelectionOptions, Snapshot, SnapshotLimits, collect_project_tree,
+    BUILTIN_EXCLUDED_DIRECTORIES, SelectionOptions, Snapshot, SnapshotLimits, collect_project_tree,
     collect_project_with_options_and_limits,
 };
 
@@ -107,7 +107,7 @@ where
         ));
     }
 
-    let command = format!("tar -cf - -C {} .", quote_posix(remote_path));
+    let command = remote_tar_command(remote_path);
     let mut child = Command::new("ssh")
         .args([
             "-T",
@@ -195,6 +195,36 @@ fn validate_destination(destination: &str) -> io::Result<()> {
 
 fn quote_posix(argument: &str) -> String {
     format!("'{}'", argument.replace('\'', "'\\''"))
+}
+
+fn remote_tar_command(remote_path: &str) -> String {
+    // Every prefiltered directory is already excluded by the local collector.
+    // These patterns must never omit .gitignore or .cpctx.toml: both are
+    // required locally for correct selection and profile resolution.
+    const HIDDEN_GENERATED: &[&str] = &[
+        ".git",
+        ".venv",
+        ".idea",
+        ".vscode",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".tox",
+    ];
+    let mut flags = String::new();
+    for name in BUILTIN_EXCLUDED_DIRECTORIES.iter().chain(HIDDEN_GENERATED) {
+        flags.push_str(" --exclude=");
+        flags.push_str(&quote_posix(name));
+        flags.push_str(" --exclude=");
+        flags.push_str(&quote_posix(&format!("*/{name}")));
+    }
+    let root = quote_posix(remote_path);
+    // GNU tar and bsdtar support --exclude. A POSIX tar without this option
+    // transparently retains the previous unfiltered transfer behavior.
+    // Probe only before writing the archive to avoid concatenating partial
+    // tar streams if a real archive operation fails.
+    format!(
+        "if tar --help 2>&1 | grep -Fq -- '--exclude'; then tar -cf -{flags} -C {root} .; else tar -cf - -C {root} .; fi"
+    )
 }
 
 fn safe_relative_path(path: &Path) -> io::Result<PathBuf> {
@@ -365,5 +395,22 @@ mod tests {
         let directory = tempfile::tempdir().expect("temporary directory");
         unpack_archive(&bytes, directory.path()).expect("links should be skipped");
         assert!(!directory.path().join("src/link.rs").exists());
+    }
+    #[test]
+    fn remote_tar_prefilters_only_locally_excluded_directories() {
+        let command = super::remote_tar_command("/srv/project");
+        for directory in ["target", "node_modules", "__pycache__", ".git", ".venv"] {
+            assert!(command.contains(&format!("--exclude='{directory}'")));
+            assert!(command.contains(&format!("--exclude='*/{directory}'")));
+        }
+        assert!(!command.contains("--exclude='.gitignore'"));
+        assert!(!command.contains("--exclude='.cpctx.toml'"));
+        assert!(command.contains("tar -cf - -C '/srv/project' ."));
+    }
+
+    #[test]
+    fn remote_tar_shell_escapes_project_paths() {
+        let command = super::remote_tar_command("/srv/a'b project");
+        assert!(command.contains("-C '/srv/a'\\''b project' ."));
     }
 }

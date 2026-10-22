@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Every pull request must
 
 ### Added
 
+- Prefilter known generated and hidden cache directories on SSH servers using supported tar exclude patterns, with automatic fallback for POSIX tar implementations without exclusions.
+
 - Build and smoke-test Windows/Linux release archives and an installable Debian package; verify SHA-256 assets, allow opt-in Windows user PATH installation, and publish only on verified version tags.
 
 - Expand `cpctx --help`/`-h` into a structured, English CLI reference with examples, defaults, safety and SSH notes; add precise invalid-option diagnostics and integration coverage.
