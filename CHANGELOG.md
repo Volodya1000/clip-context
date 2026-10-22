@@ -12,6 +12,8 @@ All notable changes to this project are documented here. Every pull request must
 
 ### Changed
 
+- Update GitHub Actions security and commit-checking actions: Zizmor v0.7.1, Cocogitto action v4.2.0 and Gitleaks action v3.0.0.
+
 - Increase the mandatory CI line coverage threshold from 75% to 90%.
 - Expose the CLI as `cpctx`, retaining the `clip-context` package name and `-t` / `-s` short options.
 - Split project collection, selection, tree rendering, and Markdown output into focused Rust modules with unit tests.

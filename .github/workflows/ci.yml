@@ -134,7 +134,7 @@ jobs:
           persist-credentials: false
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Validate Git commit history
-        uses: cocogitto/cocogitto-action@390bda87a19bf627e03ad075c67a11e9ddbb7547  # v4
+        uses: cocogitto/cocogitto-action@52d0023b4396897f1815648e553db2ab8d782f3a  # v4.2.0
         with:
           command: check
           args: ${{ github.event.pull_request.base.sha }}..HEAD
@@ -170,6 +170,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
           persist-credentials: false
-      - uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482  # v0.6.4
+      - uses: zizmorcore/zizmor-action@85b2b9fb8e3325e7a23d7d0a9d7ba5ae0f999e3e  # v0.7.1
         with:
           advanced-security: false
