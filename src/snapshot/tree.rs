@@ -6,7 +6,7 @@ use std::path::Path;
 use super::Snapshot;
 
 impl Snapshot {
-    /// ASCII-style directory tree containing only included files.
+    /// Box-drawing directory tree containing only included files.
     #[must_use]
     pub fn tree(&self) -> String {
         let mut root = TreeNode::default();
@@ -18,7 +18,6 @@ impl Snapshot {
         root.append_children(&mut output, "");
         output
     }
-
 }
 
 #[derive(Default)]
@@ -51,5 +50,3 @@ impl TreeNode {
         }
     }
 }
-
-
