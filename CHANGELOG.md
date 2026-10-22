@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Every pull request must
 
 ## [Unreleased]
 
+### Security and maintenance
+
+- Update GitHub Actions security scanners Zizmor to 0.7.1 and Gitleaks to 3.0.0 (Node 24), and commit-policy checker Cocogitto Action to 4.2.0. Action versions remain pinned to immutable commit hashes.
+
+
 ### Added
 
 - First deterministic UTF-8 source-file collector with a filtered directory tree and Markdown formatter.
