@@ -2,7 +2,7 @@
 
 A local-first Rust CLI for collecting source files and a filtered directory tree into a reproducible text snapshot.
 
-**Current stage:** project snapshots, file selection, nested `.gitignore`, TOML profiles and stdout. Native clipboard integration, exhaustive secret detection, model-specific tokenization and SSH are **not yet implemented**.
+**Current stage:** project snapshots, file selection, nested `.gitignore`, TOML profiles, stdout and clipboard output. Exhaustive secret detection, model-specific tokenization and SSH are **not yet implemented**.
 
 ## Example
 
@@ -22,6 +22,7 @@ cargo test --locked --all-targets --all-features
 
 - `-s` / `--stdout` prints Markdown with selected source files and an ordered tree.
 - `-t` / `--tree` prints only the tree.
+- `-c` / `--clipboard` writes the exact `-s` Markdown to the system clipboard without printing the context to stdout.
 - `--ext EXT` can be repeated to restrict selection to exactly those extensions, replacing the built-in extension allowlist.
 - `--exclude-dir NAME` can be repeated to exclude directories by name at every depth, in addition to built-in exclusions.
 
@@ -52,7 +53,7 @@ The profile defines initial extensions and directory exclusions. Explicit `--ext
 
 An explicit `--config FILE` path is resolved relative to the chosen project directory unless absolute; it requires `--profile`. The hidden default `.cpctx.toml` is never included in snapshots.
 
-Both commands require a project directory. They do not modify any files or clipboard contents. All source files are read before output is printed, so a read or UTF-8 error does not produce a partial snapshot.
+All modes require a project directory. Only `-c` modifies the clipboard; `-s` and `-t` leave it unchanged. All source files are read before output is printed, so a read or UTF-8 error does not produce a partial snapshot.
 
 By default, only common source-file extensions are collected. Hidden files/directories, symbolic links, and known generated directories such as `.git`, `.venv`, `target`, `build` and `node_modules` are excluded. The built-in directory exclusions remain active when options are supplied.
 
@@ -65,6 +66,19 @@ Before producing **any stdout**, the collector rejects selected files with commo
 The defaults are **262,144 source bytes** and **32,000 estimated tokens**, whichever limit is reached first. Token estimates use `ceil(source_bytes / 4)` and are **not** exact LLM token counts. Markdown delimiters, paths and the directory tree are outside these source budgets. Use `--max-bytes N` and `--max-estimated-tokens N` with strictly positive integers to tune them. Every included file is read with a bounded reader to avoid loading an unexpectedly large file. If the budget is exceeded, nothing is printed.
 
 **Security limitation:** these are targeted, high-confidence detections, not a full substitute for specialized scanners (for example, Gitleaks), code review, or a model-specific tokenizer. An unknown credential format can still be leaked by a snapshot. **Do not send confidential code to external services** based only on this screening.
+
+## Clipboard support
+
+```sh
+cpctx -c .
+cpctx --clipboard . --profile backend
+```
+
+**Windows:** Requires built-in Windows PowerShell with `Set-Clipboard`. Input is passed as UTF-8 through the child's stdin, never as a shell argument.
+
+**Linux:** In Wayland, install `wl-clipboard` (which provides `wl-copy`). In X11, install `xclip` or `xsel`. The CLI selects the backend using `WAYLAND_DISPLAY` and `DISPLAY`; on XWayland it can fall back from an unavailable Wayland executable to X11. These Linux clipboard tools keep the copied content available after `cpctx` exits. A headless/SSH-only environment without graphical session fails with an actionable error, never silently falls back to printing or writing a file.
+
+For all modes, selected files must first pass `.gitignore`, configuration, credential screening and source limits. A failure during collection does **not** alter the clipboard; failure to invoke a clipboard backend produces nonzero exit status and **no source content on stdout**. A clipboard service might modify its state before reporting failure, so this guarantee applies to pre-copy validation only.
 
 ## Quality gates
 
@@ -79,7 +93,7 @@ Every PR must follow Conventional Commits naming and change `CHANGELOG.md`. See 
 3. Root and nested `.gitignore` rules (this PR).
 4. Named TOML selection profiles (this PR).
 5. Selected credential signatures and bounded source budgets (this PR).
-6. Broader secret rules and exact-output limits, followed by native Windows/Linux clipboard.
+6. OS clipboard output on Windows/Linux (this PR); improved detection and final-output limits remain future work.
 7. SSH remote collection and packaging.
 
 ## License
