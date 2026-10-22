@@ -1,0 +1,10 @@
+/target/
+/coverage/
+/lcov.info
+*.profraw
+*.profdata
+.DS_Store
+.idea/
+.vscode/
+__pycache__/
+*.pyc
