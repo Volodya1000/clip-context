@@ -60,6 +60,11 @@ cpctx --version
 
 For a single-archive check, select the applicable checksum line first.
 `/usr/local/bin` should already be on PATH on standard Linux distributions.
+Alternatively, inspect [the Linux installer](../scripts/install.sh), then execute
+`sudo sh scripts/install.sh vX.Y.Z`. It verifies SHA-256 and installs
+`/usr/local/bin/cpctx` (normally on PATH). For test environments, set
+`PREFIX`, `CPCTX_ARCHIVE` and `CPCTX_CHECKSUMS` to use checked local files.
+
 This release does not claim macOS, ARM64 or Alpine/musl compatibility.
 
 ## Publishing a real release (maintainers)
