@@ -142,7 +142,7 @@ jobs:
       - name: Validate pull request title
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
-        run: printf '%s\n' "$PR_TITLE" | cog verify --file -
+        run: cog verify "$PR_TITLE"
 
   changelog:
     name: CHANGELOG.md is updated
