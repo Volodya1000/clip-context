@@ -123,7 +123,10 @@ fn short_help_is_concise_and_matches_no_args_and_h() {
     ] {
         // The short usage shows the short mode aliases and their purposes.
         if !matches!(option, "--stdout" | "--tree" | "--clipboard") {
-            assert!(reference.contains(option), "missing short help flag: {option}");
+            assert!(
+                reference.contains(option),
+                "missing short help flag: {option}"
+            );
         }
     }
     for line in reference.lines() {
