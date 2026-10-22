@@ -6,7 +6,7 @@ use std::env;
 use std::ffi::OsString;
 use std::process::ExitCode;
 
-const HELP: &str = "clip-context: prepare project context for sharing\n\nUsage:\n  cpctx -s PATH [OPTIONS]   Print selected project source and tree\n  cpctx -t PATH [OPTIONS]   Print selected file tree\n  cpctx --help              Show this message\n  cpctx --version           Show the version\n\nOptions:\n  --ext EXT                 Restrict extensions, repeatable\n  --exclude-dir NAME        Exclude directory names, repeatable\n  --profile NAME            Use a named profile from .cpctx.toml\n  --config FILE             Alternative TOML file (requires --profile)\n\nLong forms: --stdout and --tree. Clipboard and secret scanning are not implemented yet.";
+const HELP: &str = "clip-context: prepare project context for sharing\n\nUsage:\n  cpctx -s PATH [OPTIONS]   Print selected project source and tree\n  cpctx -t PATH [OPTIONS]   Print selected file tree\n  cpctx --help              Show this message\n  cpctx --version           Show the version\n\nOptions:\n  --ext EXT                 Restrict extensions, repeatable\n  --exclude-dir NAME        Exclude directory names, repeatable\n  --profile NAME            Use a named profile from .cpctx.toml\n  --config FILE             Alternative TOML file (requires --profile)\n  --max-bytes N             Maximum selected source bytes (default 262144)\n  --max-estimated-tokens N  Approximate token budget (default 32000)\n\nLong forms: --stdout and --tree. Recognized credentials abort collection. Clipboard is not implemented yet.";
 
 fn main() -> ExitCode {
     let arguments: Vec<OsString> = env::args_os().skip(1).collect();

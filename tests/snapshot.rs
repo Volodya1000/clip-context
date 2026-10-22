@@ -395,3 +395,140 @@ fn configuration_errors_are_not_silently_recovered() {
         .expect_err("missing file must fail");
     assert_eq!(missing.kind(), ErrorKind::NotFound);
 }
+
+#[test]
+fn suspected_github_token_aborts_snapshot_without_leaking_credentials() {
+    use clip_context::snapshot::collect_project;
+
+    let fixture = Fixture::new();
+    fixture.file("a.rs", "public code");
+    let synthetic_secret = format!("ghp_{}", "Q".repeat(36));
+    fixture.file("b.rs", &format!("token = \"{synthetic_secret}\""));
+
+    let error = collect_project(fixture.path()).expect_err("suspected token must stop export");
+    assert_eq!(error.kind(), ErrorKind::PermissionDenied);
+    assert!(!error.to_string().contains(&synthetic_secret));
+}
+
+#[test]
+fn private_key_material_is_rejected() {
+    let fixture = Fixture::new();
+    fixture.file(
+        "src/key.txt",
+        &format!("-----BEGIN {}-----\nplaceholder\n", "PRIVATE KEY"),
+    );
+    let error = collect_project(fixture.path()).expect_err("private key must block collection");
+    assert_eq!(error.kind(), ErrorKind::PermissionDenied);
+}
+
+#[test]
+fn ignored_credentials_do_not_block_safe_selected_files() {
+    let fixture = Fixture::new();
+    fixture.file(".gitignore", "private/\n");
+    fixture.file(
+        "private/key.txt",
+        &format!("-----BEGIN {}-----\nprivate\n", "PRIVATE KEY"),
+    );
+    fixture.file("src/main.rs", "safe");
+
+    let snapshot = collect_project(fixture.path()).expect("ignored files are not selected");
+    assert_eq!(snapshot.files().len(), 1);
+    assert_eq!(snapshot.files()[0].content(), "safe");
+}
+
+#[test]
+fn cumulative_source_byte_budget_is_enforced() {
+    use clip_context::snapshot::{SnapshotLimits, collect_project_with_options_and_limits};
+    use std::num::NonZeroUsize;
+
+    let fixture = Fixture::new();
+    fixture.file("first.rs", "123456");
+    fixture.file("second.rs", "abcdef");
+    let mut limits = SnapshotLimits::default();
+    limits.set_max_source_bytes(NonZeroUsize::new(10).expect("positive"));
+
+    let error = collect_project_with_options_and_limits(
+        fixture.path(),
+        &SelectionOptions::default(),
+        &limits,
+    )
+    .expect_err("combined files must exceed byte budget");
+    assert_eq!(error.kind(), ErrorKind::FileTooLarge);
+}
+
+#[test]
+fn exact_byte_budget_succeeds_and_larger_file_fails() {
+    use clip_context::snapshot::{SnapshotLimits, collect_project_with_options_and_limits};
+    use std::num::NonZeroUsize;
+
+    let fixture = Fixture::new();
+    fixture.file("main.rs", "123456789");
+    let mut limits = SnapshotLimits::default();
+    limits.set_max_source_bytes(NonZeroUsize::new(9).expect("positive"));
+
+    let snapshot = collect_project_with_options_and_limits(
+        fixture.path(),
+        &SelectionOptions::default(),
+        &limits,
+    )
+    .expect("exact byte boundary is valid");
+    assert_eq!(snapshot.files()[0].content(), "123456789");
+
+    limits.set_max_source_bytes(NonZeroUsize::new(8).expect("positive"));
+    let error = collect_project_with_options_and_limits(
+        fixture.path(),
+        &SelectionOptions::default(),
+        &limits,
+    )
+    .expect_err("one byte past budget must fail");
+    assert_eq!(error.kind(), ErrorKind::FileTooLarge);
+}
+
+#[test]
+fn estimated_tokens_enforce_an_independent_byte_based_budget() {
+    use clip_context::snapshot::{SnapshotLimits, collect_project_with_options_and_limits};
+    use std::num::NonZeroUsize;
+
+    let fixture = Fixture::new();
+    fixture.file("main.py", "123456789");
+    let mut limits = SnapshotLimits::default();
+    limits.set_max_source_bytes(NonZeroUsize::new(100).expect("positive"));
+    limits.set_max_estimated_tokens(NonZeroUsize::new(2).expect("positive"));
+
+    let error = collect_project_with_options_and_limits(
+        fixture.path(),
+        &SelectionOptions::default(),
+        &limits,
+    )
+    .expect_err("estimate should disallow nine bytes at two tokens");
+    assert_eq!(error.kind(), ErrorKind::FileTooLarge);
+
+    limits.set_max_estimated_tokens(NonZeroUsize::new(3).expect("positive"));
+    let snapshot = collect_project_with_options_and_limits(
+        fixture.path(),
+        &SelectionOptions::default(),
+        &limits,
+    )
+    .expect("three estimated tokens should accommodate nine bytes");
+    assert_eq!(snapshot.files().len(), 1);
+}
+
+#[test]
+fn empty_source_remains_valid_when_byte_budget_is_exhausted() {
+    use clip_context::snapshot::{SnapshotLimits, collect_project_with_options_and_limits};
+    use std::num::NonZeroUsize;
+
+    let fixture = Fixture::new();
+    fixture.file("a.py", "x");
+    fixture.file("b.py", "");
+    let mut limits = SnapshotLimits::default();
+    limits.set_max_source_bytes(NonZeroUsize::new(1).expect("positive"));
+
+    let snapshot = collect_project_with_options_and_limits(
+        fixture.path(),
+        &SelectionOptions::default(),
+        &limits,
+    )
+    .expect("an empty second file consumes no extra bytes");
+    assert_eq!(snapshot.files().len(), 2);
+}
