@@ -4,14 +4,14 @@ use std::fmt;
 
 /// Size of the exact UTF-8 output and a lightweight token estimate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct OutputStats {
+pub struct OutputStats {
     bytes: usize,
     tokens_estimate: usize,
 }
 
 impl OutputStats {
     /// Calculate O(1) metrics from already-rendered output, without tokenizing.
-    pub(crate) const fn from_utf8(text: &str) -> Self {
+    pub const fn from_utf8(text: &str) -> Self {
         let bytes = text.len();
         Self {
             bytes,
@@ -22,10 +22,12 @@ impl OutputStats {
 
 impl fmt::Display for OutputStats {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let rounded_tenth = ((self.bytes % 1024) * 10 + 512) / 1024;
+        let whole_kib = self.bytes / 1024 + rounded_tenth / 10;
+        let fractional_digit = rounded_tenth % 10;
         write!(
             formatter,
-            "Context: {:.1} KiB ({} bytes) | ~{} tokens (estimated)",
-            self.bytes as f64 / 1024.0,
+            "Context: {whole_kib}.{fractional_digit} KiB ({} bytes) | ~{} tokens (estimated)",
             self.bytes,
             self.tokens_estimate
         )
