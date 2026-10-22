@@ -22,6 +22,30 @@ impl SelectionOptions {
         self.extensions.push(extension.to_owned());
     }
 
+    /// Replace an existing extension selection with a new set of CLI options.
+    pub fn clear_extensions(&mut self) {
+        self.extensions.clear();
+    }
+
+    /// Return whether an extension is safe to use in a selection rule.
+    #[must_use]
+    pub fn valid_extension(extension: &str) -> bool {
+        !extension.is_empty()
+            && extension
+                .bytes()
+                .all(|character| character.is_ascii_alphanumeric())
+    }
+
+    /// Return whether a directory exclusion contains only a single name.
+    #[must_use]
+    pub fn valid_directory_name(name: &str) -> bool {
+        !name.is_empty()
+            && name != "."
+            && name != ".."
+            && !name.contains('/')
+            && !name.contains('\\')
+    }
+
     /// Exclude a directory by name, at any depth within the project root.
     pub fn exclude_directory(&mut self, name: &str) {
         self.excluded_directories.push(name.to_owned());
