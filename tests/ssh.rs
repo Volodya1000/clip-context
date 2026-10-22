@@ -199,3 +199,114 @@ fn server_prefilter_omits_large_generated_cache_before_archive_transfer() {
     assert!(!body.contains("private content"));
     assert!(!body.contains("huge.js"));
 }
+
+#[cfg(unix)]
+#[test]
+fn ssh_deadline_covers_a_stalled_archive_stream() {
+    use std::os::unix::fs::PermissionsExt;
+    use std::time::{Duration, Instant};
+    let fixture = Fixture::new();
+    fixture.file("tools/ssh", "#!/bin/sh\nexec /bin/sleep 20\n");
+    fs::set_permissions(
+        fixture.path().join("tools/ssh"),
+        fs::Permissions::from_mode(0o755),
+    )
+    .expect("executable");
+    let started = Instant::now();
+    let result = run_mock_ssh(&fixture, &["--ssh-timeout", "1"]);
+    assert!(!result.status.success());
+    assert_eq!(result.stdout, Vec::<u8>::new());
+    assert!(String::from_utf8_lossy(&result.stderr).contains("timed out"));
+    assert!(started.elapsed() < Duration::from_secs(5));
+}
+
+#[cfg(unix)]
+#[test]
+fn ssh_deadline_also_covers_process_completion_after_stdout_closes() {
+    use std::os::unix::fs::PermissionsExt;
+    use std::time::{Duration, Instant};
+    let fixture = Fixture::new();
+    fixture.file("tools/ssh", "#!/bin/sh\nexec 1>&-\nexec /bin/sleep 20\n");
+    fs::set_permissions(
+        fixture.path().join("tools/ssh"),
+        fs::Permissions::from_mode(0o755),
+    )
+    .expect("executable");
+    let started = Instant::now();
+    let result = run_mock_ssh(&fixture, &["--ssh-timeout", "1"]);
+    assert!(!result.status.success());
+    assert_eq!(result.stdout, Vec::<u8>::new());
+    assert!(String::from_utf8_lossy(&result.stderr).contains("process completion timed out"));
+    assert!(started.elapsed() < Duration::from_secs(5));
+}
+
+#[cfg(unix)]
+#[test]
+fn ssh_failure_categories_do_not_echo_remote_stderr() {
+    use std::os::unix::fs::PermissionsExt;
+    let fixture = Fixture::new();
+    for (status, expected) in [
+        (255, "host keys, authentication and network"),
+        (2, "directory permissions and tar"),
+    ] {
+        fixture.file(
+            "tools/ssh",
+            &format!("#!/bin/sh\nprintf 'REMOTE_PRIVATE_MARKER' >&2\nexit {status}\n"),
+        );
+        fs::set_permissions(
+            fixture.path().join("tools/ssh"),
+            fs::Permissions::from_mode(0o755),
+        )
+        .expect("executable");
+        let result = run_mock_ssh(&fixture, &[]);
+        assert!(!result.status.success());
+        assert_eq!(result.stdout, Vec::<u8>::new());
+        let diagnostic = String::from_utf8_lossy(&result.stderr);
+        assert!(diagnostic.contains(expected));
+        assert!(!diagnostic.contains("REMOTE_PRIVATE_MARKER"));
+    }
+}
+
+#[test]
+fn invalid_transport_deadlines_are_rejected_before_starting_ssh() {
+    use clip_context::remote::{RemoteOptions, collect_remote_with_options};
+    use clip_context::snapshot::SnapshotLimits;
+    use std::path::Path;
+    use std::time::Duration;
+    for timeout in [Duration::ZERO, Duration::MAX] {
+        let result = collect_remote_with_options(
+            "test@host",
+            Path::new("/project"),
+            &SnapshotLimits::default(),
+            &RemoteOptions {
+                timeout,
+                ..RemoteOptions::default()
+            },
+            |_| panic!("must not resolve selection"),
+        );
+        assert_eq!(
+            result.expect_err("invalid timeout").kind(),
+            std::io::ErrorKind::InvalidInput
+        );
+    }
+}
+
+#[test]
+fn timeout_cli_requires_positive_seconds_and_an_ssh_destination() {
+    use std::process::Command;
+    for flags in [
+        vec!["--ssh-timeout", "1"],
+        vec!["--ssh", "host", "--ssh-timeout", "0"],
+        vec!["--ssh", "host", "--ssh-timeout", "invalid"],
+        vec!["--ssh", "host", "--ssh-timeout", "1", "--ssh-timeout", "2"],
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_cpctx"))
+            .args(["-c", "/project"])
+            .args(flags)
+            .output()
+            .expect("CLI");
+        assert!(!output.status.success());
+        assert_eq!(output.stdout, Vec::<u8>::new());
+        assert!(String::from_utf8_lossy(&output.stderr).contains("--ssh-timeout"));
+    }
+}

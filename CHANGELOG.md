@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Every pull request must
 
 ### Added
 
+- Bound SSH archive reception and process completion with a default 60-second operation deadline and --ssh-timeout; add configurable library transport options and safe connection-vs-remote-command diagnostics.
+
 - Add --changed-since for local Git history/index/worktree selection, intersecting existing filters and preserving NUL-delimited filenames; omit deleted/untracked paths and expose unchanged-path reasons in previews.
 
 - Add metadata-only --explain/--dry-run modes with source sizes, largest files, exclusion reasons and budget guidance; bound diagnostic traversal/output independently and reject SSH rather than downloading source for a dry run.

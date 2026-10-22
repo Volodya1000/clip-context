@@ -15,7 +15,7 @@ Options:
   --changed-since REV       Select changed existing tracked files (local Git)
   --profile NAME            Use named selection profile from .cpctx.toml
   --config FILE             Override profile file (requires --profile)
-  --ssh HOST                Read a remote PATH through SSH
+  --ssh HOST                Remote PATH; --ssh-timeout N (default: 60s)
   --max-bytes N             Byte budget (default: 262144)
   --max-estimated-tokens N  Approximate context tokens (default: 32000)
   -h, --help                Short usage reference

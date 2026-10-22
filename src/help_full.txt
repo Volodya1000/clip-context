@@ -94,6 +94,10 @@ Selection preview:
 
 Remote SSH:
   --ssh HOST             Read PATH from an SSH alias, host or user@host (once).
+  --ssh-timeout N        Overall transfer/process timeout in seconds (default: 60).
+                         Requires --ssh; positive integer, specified once.
+                         Covers receiving the archive and SSH exit, not local
+                         extraction, scanning or rendering. No partial export.
   Install cpctx locally only; the server needs SSH, a POSIX shell and tar.
   Clipboard output stays local; existing SSH authentication and host keys apply.
   A tar archive is transferred first, with a 16 MiB / 10000-entry safety cap.

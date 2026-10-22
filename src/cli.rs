@@ -2,14 +2,13 @@
 
 use std::ffi::{OsStr, OsString};
 use std::io::{self, Write};
-use std::num::NonZeroUsize;
+use std::num::{NonZeroU64, NonZeroUsize};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::time::Duration;
 
 use clip_context::profile::{DEFAULT_CONFIG_FILE, load_profile};
-use clip_context::remote::{
-    collect_remote_project_with_selection, collect_remote_tree_with_selection,
-};
+use clip_context::remote::{RemoteMode, RemoteOptions, collect_remote_with_options};
 use clip_context::snapshot::{
     ContextFormat, SelectionOptions, SnapshotLimits, collect_project_tree,
     collect_project_with_options_and_limits, explain_project,
@@ -26,6 +25,7 @@ struct SelectionArguments {
     changed_since: Option<String>,
     limits: SnapshotLimits,
     ssh_destination: Option<String>,
+    ssh_timeout: Option<NonZeroU64>,
     format: ContextFormat,
 }
 
@@ -57,16 +57,25 @@ pub fn run_snapshot(mode: &OsStr, path: &OsStr, flags: &[OsString]) -> ExitCode 
             }
             resolve_selection(local_root, &arguments)
         };
-        if tree_only {
-            collect_remote_tree_with_selection(destination, root, &arguments.limits, resolve_remote)
-        } else {
-            collect_remote_project_with_selection(
-                destination,
-                root,
-                &arguments.limits,
-                resolve_remote,
-            )
-        }
+        let transport = RemoteOptions {
+            mode: if tree_only {
+                RemoteMode::Tree
+            } else {
+                RemoteMode::Sources
+            },
+            timeout: arguments
+                .ssh_timeout
+                .map_or(Duration::from_secs(60), |seconds| {
+                    Duration::from_secs(seconds.get())
+                }),
+        };
+        collect_remote_with_options(
+            destination,
+            root,
+            &arguments.limits,
+            &transport,
+            resolve_remote,
+        )
     } else {
         resolve_selection(root, &arguments).and_then(|options| {
             if tree_only {
@@ -144,6 +153,16 @@ fn parse_selection(flags: &[OsString]) -> Result<SelectionArguments, String> {
             continue;
         }
         match flag {
+            "--ssh-timeout" => {
+                if arguments.ssh_timeout.is_some() {
+                    return Err("--ssh-timeout may be specified only once.".into());
+                }
+                arguments.ssh_timeout = Some(
+                    value
+                        .parse()
+                        .map_err(|_error| "--ssh-timeout requires positive seconds.")?,
+                );
+            }
             "--changed-since" => {
                 if arguments.changed_since.is_some() || value.is_empty() {
                     return Err("--changed-since requires one nonempty revision, once.".into());
@@ -252,6 +271,9 @@ fn parse_file_selection(
 }
 
 fn validate_arguments(arguments: &SelectionArguments) -> Result<(), String> {
+    if arguments.ssh_timeout.is_some() && arguments.ssh_destination.is_none() {
+        return Err("--ssh-timeout requires --ssh.".into());
+    }
     if arguments.config_file.is_some() && arguments.profile.is_none() {
         return Err("--config requires --profile.".into());
     }

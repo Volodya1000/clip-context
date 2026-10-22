@@ -115,8 +115,12 @@ Only the **client computer** needs `cpctx`. A remote POSIX server needs SSH acce
 
 ```sh
 cpctx -s /srv/project --ssh dev@server
-cpctx -c /srv/project --ssh dev@server --format compact
+cpctx -c /srv/project --ssh dev@server --format compact --ssh-timeout 30
 ```
+
+The overall SSH transfer/process deadline defaults to 60 seconds; use
+`--ssh-timeout N` to set positive seconds. The deadline covers receiving the
+archive and SSH exit, independently of output budgets and local rendering.
 
 The path is remote, but clipboard output stays on your local computer. Host-key verification uses your SSH configuration. The transferred archive is limited to **16 MiB**; supported tar implementations prefilter known generated directories before transfer. Profiles and .gitignore filtering still run locally, so other large ignored files can hit this limit.
 
