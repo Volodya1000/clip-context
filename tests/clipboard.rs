@@ -37,7 +37,6 @@ fn clipboard_mode_rejects_suspected_credentials_before_backend_invocation() {
 
 #[cfg(target_os = "linux")]
 mod linux {
-    use std::env;
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
     use std::path::PathBuf;
