@@ -1,3 +1,5 @@
+//! End-to-end smoke tests of the command-line interface.
+
 use std::process::{Command, Output};
 
 fn execute(arguments: &[&str]) -> Output {
@@ -20,7 +22,9 @@ fn version_is_available() {
     let output = execute(&["--version"]);
     assert!(output.status.success());
     assert_eq!(
-        String::from_utf8(output.stdout).expect("version must be UTF-8").trim(),
+        String::from_utf8(output.stdout)
+            .expect("version must be UTF-8")
+            .trim(),
         format!("clip-context {}", env!("CARGO_PKG_VERSION"))
     );
 }

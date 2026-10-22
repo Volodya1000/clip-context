@@ -1,3 +1,5 @@
+//! Minimal CLI entry point while the project is being bootstrapped.
+
 use std::env;
 use std::process::ExitCode;
 
