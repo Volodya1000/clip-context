@@ -1,10 +1,14 @@
 //! SSH collection smoke tests without requiring a real remote host.
 
+#[cfg(unix)]
 mod support;
 
+#[cfg(unix)]
 use std::fs;
+#[cfg(unix)]
 use std::process::Command;
 
+#[cfg(unix)]
 use support::Fixture;
 
 #[cfg(unix)]
