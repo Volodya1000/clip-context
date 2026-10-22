@@ -223,8 +223,8 @@ fn selecting_specific_extensions_does_not_disable_builtin_exclusions() {
 
     let mut options = SelectionOptions::default();
     options.include_extension("rs");
-    let result = collect_project_with_options(fixture.path(), &options)
-        .expect("selection should work");
+    let result =
+        collect_project_with_options(fixture.path(), &options).expect("selection should work");
 
     assert_eq!(result.files().len(), 1);
     assert_eq!(result.files()[0].content(), "keep-source");
@@ -239,8 +239,8 @@ fn extra_directory_exclusions_preserve_nested_source_files_elsewhere() {
 
     let mut options = SelectionOptions::default();
     options.exclude_directory("generated");
-    let result = collect_project_with_options(fixture.path(), &options)
-        .expect("selection should work");
+    let result =
+        collect_project_with_options(fixture.path(), &options).expect("selection should work");
 
     assert_eq!(result.files().len(), 1);
     assert_eq!(result.files()[0].content(), "keep-source");

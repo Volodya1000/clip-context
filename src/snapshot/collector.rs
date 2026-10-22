@@ -30,7 +30,10 @@ pub fn collect_project(root: &Path) -> io::Result<Snapshot> {
 /// # Errors
 ///
 /// Fails if the root is not a directory or a matching file cannot be read.
-pub fn collect_project_with_options(root: &Path, options: &SelectionOptions) -> io::Result<Snapshot> {
+pub fn collect_project_with_options(
+    root: &Path,
+    options: &SelectionOptions,
+) -> io::Result<Snapshot> {
     if !root.is_dir() {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,

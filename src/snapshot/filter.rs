@@ -105,11 +105,15 @@ mod tests {
         assert!(has_supported_extension(Path::new("main.rs"), &options));
         assert!(has_supported_extension(Path::new("README.md"), &options));
         assert!(!has_supported_extension(Path::new("script.py"), &options));
-        assert!(!has_supported_extension(Path::new("no_extension"), &options));
+        assert!(!has_supported_extension(
+            Path::new("no_extension"),
+            &options
+        ));
     }
 
     #[test]
     fn generated_directories_are_skipped_case_insensitively() {
+        let options = SelectionOptions::default();
         for directory in [
             "build",
             "target",
@@ -119,17 +123,18 @@ mod tests {
             "venv",
             "dist",
         ] {
-            assert!(!includes_directory(OsStr::new(directory), &SelectionOptions::default()));
+            assert!(!includes_directory(OsStr::new(directory), &options));
         }
-        assert!(includes_directory(OsStr::new("src"), &SelectionOptions::default()));
-        assert!(includes_directory(OsStr::new("_domain"), &SelectionOptions::default()));
+        assert!(includes_directory(OsStr::new("src"), &options));
+        assert!(includes_directory(OsStr::new("_domain"), &options));
     }
 
     #[test]
     fn supported_extensions_are_case_insensitive() {
-        assert!(has_supported_extension(Path::new("src/main.RS"), &SelectionOptions::default()));
-        assert!(has_supported_extension(Path::new("src/module.py"), &SelectionOptions::default()));
-        assert!(!has_supported_extension(Path::new("src/module"), &SelectionOptions::default()));
-        assert!(!has_supported_extension(Path::new("assets/icon.png"), &SelectionOptions::default()));
+        let options = SelectionOptions::default();
+        assert!(has_supported_extension(Path::new("src/main.RS"), &options));
+        assert!(has_supported_extension(Path::new("src/module.py"), &options));
+        assert!(!has_supported_extension(Path::new("src/module"), &options));
+        assert!(!has_supported_extension(Path::new("assets/icon.png"), &options));
     }
 }
