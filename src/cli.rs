@@ -16,7 +16,7 @@ struct SelectionArguments {
     excluded_directories: Vec<String>,
 }
 
-pub(super) fn run_snapshot(mode: &OsStr, path: &OsStr, flags: &[OsString]) -> ExitCode {
+pub fn run_snapshot(mode: &OsStr, path: &OsStr, flags: &[OsString]) -> ExitCode {
     let arguments: SelectionArguments = match parse_selection(flags) {
         Ok(arguments) => arguments,
         Err(message) => {
