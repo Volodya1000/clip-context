@@ -73,12 +73,10 @@ fn copy_linux(text: &str) -> io::Result<()> {
         return match write_command("xclip", &["-selection", "clipboard"], text) {
             Err(error) if error.kind() == io::ErrorKind::NotFound => {
                 match write_command("xsel", &["--clipboard", "--input"], text) {
-                    Err(error) if error.kind() == io::ErrorKind::NotFound => {
-                        Err(io::Error::new(
-                            io::ErrorKind::NotFound,
-                            "X11 clipboard requires xclip or xsel",
-                        ))
-                    }
+                    Err(error) if error.kind() == io::ErrorKind::NotFound => Err(io::Error::new(
+                        io::ErrorKind::NotFound,
+                        "X11 clipboard requires xclip or xsel",
+                    )),
                     result => result,
                 }
             }
@@ -140,12 +138,8 @@ mod tests {
 
     #[test]
     fn a_missing_backend_returns_not_found() {
-        let error = write_command(
-            "cpctx-nonexistent-clipboard-backend",
-            &[],
-            "text",
-        )
-        .expect_err("nonexistent program must fail");
+        let error = write_command("cpctx-nonexistent-clipboard-backend", &[], "text")
+            .expect_err("nonexistent program must fail");
         assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
     }
 }

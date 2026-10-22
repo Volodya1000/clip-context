@@ -30,7 +30,12 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         [mode, path, flags @ ..]
-            if mode == "--stdout" || mode == "-s" || mode == "--tree" || mode == "-t" || mode == "--clipboard" || mode == "-c" =>
+            if mode == "--stdout"
+                || mode == "-s"
+                || mode == "--tree"
+                || mode == "-t"
+                || mode == "--clipboard"
+                || mode == "-c" =>
         {
             cli::run_snapshot(mode, path, flags)
         }

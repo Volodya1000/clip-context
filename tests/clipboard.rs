@@ -166,8 +166,9 @@ mod linux {
         let result = execute_in_session(&fixture, "-c", true, false, &[]);
         assert!(!result.status.success());
         assert!(result.stdout.is_empty());
-        assert!(!String::from_utf8_lossy(&result.stderr)
-            .contains("confidential snapshot contents"));
+        assert!(
+            !String::from_utf8_lossy(&result.stderr).contains("confidential snapshot contents")
+        );
         assert!(!fixture.path().join("captured.md").exists());
     }
 
@@ -200,13 +201,7 @@ mod linux {
         let fixture = Fixture::new();
         fixture.file("src/main.rs", "some valid data");
         executable(&fixture, "wl-copy", CAPTURE);
-        let result = execute_in_session(
-            &fixture,
-            "-c",
-            true,
-            false,
-            &["--max-bytes", "1"],
-        );
+        let result = execute_in_session(&fixture, "-c", true, false, &["--max-bytes", "1"]);
 
         assert!(!result.status.success());
         assert!(result.stdout.is_empty());
