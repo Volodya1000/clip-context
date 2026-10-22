@@ -6,7 +6,7 @@ use std::fs;
 use std::io::ErrorKind;
 use std::path::Path;
 
-use clip_context::snapshot::collect_project;
+use clip_context::snapshot::{SelectionOptions, collect_project, collect_project_with_options};
 use support::Fixture;
 
 #[test]
@@ -194,6 +194,58 @@ fn invalid_utf8_in_included_file_aborts_the_entire_snapshot() {
     assert!(error.to_string().contains("bad.rs"));
 }
 
+#[cfg(unix)]
+#[test]
+fn symbolic_links_are_not_followed() {
+    use std::os::unix::fs::symlink;
+
+    let fixture = Fixture::new();
+    fixture.file("source.py", "safe");
+    symlink(
+        fixture.path().join("source.py"),
+        fixture.path().join("shortcut.py"),
+    )
+    .expect("test symlink must be created");
+    symlink(fixture.path(), fixture.path().join("loop")).expect("test symlink must be created");
+
+    let snapshot = collect_project(fixture.path()).expect("the project should be readable");
+    assert_eq!(snapshot.files().len(), 1);
+    assert_eq!(snapshot.files()[0].content(), "safe");
+}
+
+#[test]
+fn selecting_specific_extensions_does_not_disable_builtin_exclusions() {
+    let fixture = Fixture::new();
+    fixture.file("src/main.rs", "keep-source");
+    fixture.file("src/helper.py", "not-selected");
+    fixture.file("target/generated.rs", "generated-source");
+    fixture.file(".hidden.rs", "hidden-source");
+
+    let mut options = SelectionOptions::default();
+    options.include_extension("rs");
+    let result =
+        collect_project_with_options(fixture.path(), &options).expect("selection should work");
+
+    assert_eq!(result.files().len(), 1);
+    assert_eq!(result.files()[0].content(), "keep-source");
+}
+
+#[test]
+fn extra_directory_exclusions_preserve_nested_source_files_elsewhere() {
+    let fixture = Fixture::new();
+    fixture.file("src/main.rs", "keep-source");
+    fixture.file("generated/unwanted.rs", "skip-one");
+    fixture.file("src/generated/another.rs", "skip-two");
+
+    let mut options = SelectionOptions::default();
+    options.exclude_directory("generated");
+    let result =
+        collect_project_with_options(fixture.path(), &options).expect("selection should work");
+
+    assert_eq!(result.files().len(), 1);
+    assert_eq!(result.files()[0].content(), "keep-source");
+}
+
 #[test]
 fn respects_project_root_gitignore_patterns_and_negations() {
     let fixture = Fixture::new();
@@ -260,22 +312,36 @@ fn hidden_files_remain_excluded_even_when_unignored_by_gitignore() {
     assert_eq!(snapshot.files().len(), 1);
     assert_eq!(snapshot.files()[0].content(), "included");
 }
-
-#[cfg(unix)]
+    
 #[test]
-fn symbolic_links_are_not_followed() {
-    use std::os::unix::fs::symlink;
-
+fn gitignore_and_explicit_extension_filters_apply_together() {
     let fixture = Fixture::new();
-    fixture.file("source.py", "safe");
-    symlink(
-        fixture.path().join("source.py"),
-        fixture.path().join("shortcut.py"),
-    )
-    .expect("test symlink must be created");
-    symlink(fixture.path(), fixture.path().join("loop")).expect("test symlink must be created");
+    fixture.file(".gitignore", "*.rs\n!src/keep.rs\n");
+    fixture.file("src/keep.rs", "included");
+    fixture.file("src/drop.rs", "excluded");
+    fixture.file("src/script.py", "not-selected");
 
-    let snapshot = collect_project(fixture.path()).expect("the project should be readable");
+    let mut options = SelectionOptions::default();
+    options.include_extension("rs");
+    let snapshot = collect_project_with_options(fixture.path(), &options)
+        .expect("combined selection should succeed");
+
     assert_eq!(snapshot.files().len(), 1);
-    assert_eq!(snapshot.files()[0].content(), "safe");
+    assert_eq!(snapshot.files()[0].content(), "included");
+}
+
+#[test]
+fn custom_directory_exclusions_cannot_be_undone_by_gitignore_negation() {
+    let fixture = Fixture::new();
+    fixture.file(".gitignore", "!generated/keep.rs\n");
+    fixture.file("generated/keep.rs", "excluded");
+    fixture.file("src/keep.rs", "included");
+
+    let mut options = SelectionOptions::default();
+    options.exclude_directory("generated");
+    let snapshot = collect_project_with_options(fixture.path(), &options)
+        .expect("exclusions should apply");
+
+    assert_eq!(snapshot.files().len(), 1);
+    assert_eq!(snapshot.files()[0].content(), "included");
 }

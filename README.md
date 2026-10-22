@@ -2,41 +2,49 @@
 
 A local-first Rust CLI for collecting source files and a filtered directory tree into a reproducible text snapshot.
 
-**Current stage:** project snapshots and stdout. Native clipboard integration, custom file selection, configurable profiles, secret detection and SSH are **not yet implemented**.
+**Current stage:** project snapshots, file selection, nested `.gitignore`, and stdout. Native clipboard integration, configurable profiles, secret detection and SSH are **not yet implemented**.
 
 ## Example
 
 Requires Rust 1.85 or newer.
 
 ```sh
-cargo run --bin cpctx -- --help
-cargo run --bin cpctx -- --tree .
-cargo run --bin cpctx -- --stdout .
+cargo install --locked --path .
+cpctx -t .
+cpctx -s .
+cpctx -s . --ext rs --ext toml
+cpctx -s . --exclude-dir generated
 cargo test --locked --all-targets --all-features
 ```
 
-Install the application with `cargo install --locked --path .`. The commands are `cpctx --tree .` and `cpctx --stdout .`. The shorthand forms `cpctx -t .` and `cpctx -s .` also work.
+- `-s` / `--stdout` prints Markdown with selected source files and an ordered tree.
+- `-t` / `--tree` prints only the tree.
+- `--ext EXT` can be repeated to restrict selection to exactly those extensions, replacing the built-in extension allowlist.
+- `--exclude-dir NAME` can be repeated to exclude directories by name at every depth, in addition to built-in exclusions.
 
-`--stdout` prints Markdown with selected source files and an ordered tree. `--tree` prints only the tree. Both commands require a directory; they do not modify files or clipboard contents. You can redirect stdout to a file if needed.
+Root and nested `.gitignore` files determine which files are included. Negated patterns (`!file`) work, including outside Git repositories. Ignore files from parent directories, global Git settings and `.git/info/exclude` are deliberately not read, so results only depend on the chosen root. CLI exclusions, hidden-file rules, and built-in generated-directory exclusions always take precedence over an unignore rule.
 
-By default, only common source-file extensions are collected. Files are selected according to root and nested `.gitignore` files, including negation rules (`!`). Git ignore files are used even without a `.git` directory. Global and parent ignore files are not consulted; the hidden-file and generated-directory exclusions remain mandatory. Hidden files/directories, symbolic links, and known generated directories such as `.git`, `.venv`, `target`, `build` and `node_modules` are excluded. Failing to read any selected file aborts the operation instead of producing a partial result.
+Both commands require a project directory. They do not modify any files or clipboard contents. All source files are read before output is printed, so a read or UTF-8 error does not produce a partial snapshot.
 
-**Security limitation:** filenames and extensions alone do not detect secrets embedded inside source files. Until content scanning is implemented, do not pass untrusted or confidential repositories to `--stdout` or paste the output into an external service.
+By default, only common source-file extensions are collected. Hidden files/directories, symbolic links, and known generated directories such as `.git`, `.venv`, `target`, `build` and `node_modules` are excluded. The built-in directory exclusions remain active when options are supplied.
+
+**Security limitation:** neither `.gitignore` nor extension filtering finds secrets embedded in source files. Do not send snapshots of confidential or untrusted repositories to external services.
 
 ## Quality gates
 
-The CI runs rustfmt, strict Clippy (`all`, `pedantic`, `nursery`, `cargo`), tests on Windows/Linux, rustdoc, MSRV compilation, **90% minimum line coverage**, cargo-deny, TOML/YAML hygiene, workflow linters, Conventional Commits verification of both commit history and PR titles through Cocogitto, changelog checks, and secret scanning.
+CI runs rustfmt, strict Clippy (`all`, `pedantic`, `nursery`, `cargo`), tests on Windows/Linux, rustdoc, MSRV compilation, **90% minimum line coverage**, cargo-deny, TOML/YAML hygiene, workflow linters, Conventional Commits verification through Cocogitto, changelog checks, and secret scanning.
 
 Every PR must follow Conventional Commits naming and change `CHANGELOG.md`. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Roadmap
 
 1. Deterministic project snapshots and plain output (implemented).
-2. `.gitignore` support (this PR).
-3. Configuration-driven file selection and profiles.
-4. Content-based secret detection and safe output limits.
-5. Native Windows/Linux clipboard.
-6. SSH remote collection and packaging.
+2. Additional directory and extension selection via CLI (implemented).
+3. Root and nested `.gitignore` rules (this PR).
+4. User TOML profiles.
+5. Content-based secret detection and safe output limits.
+6. Native Windows/Linux clipboard.
+7. SSH remote collection and packaging.
 
 ## License
 

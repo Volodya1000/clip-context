@@ -6,12 +6,17 @@ All notable changes to this project are documented here. Every pull request must
 
 ### Added
 
-- Respect nested `.gitignore` patterns and negated rules when collecting project context, even for directories without Git metadata; exclude rules outside the selected root.
+- Respect project-root and nested `.gitignore` patterns, including negations, without reading ignore files outside the chosen root.
+
+- Allow repeated `--ext EXT` and `--exclude-dir NAME` flags for project selection, with library support and integration tests.
+
 - First deterministic UTF-8 source-file collector with a filtered directory tree and Markdown formatter.
 - `--stdout PATH` and `--tree PATH` commands, including diagnostics for invalid project paths.
 - Integration tests for file selection, generated-directory exclusion, Markdown formatting, CLI outputs and errors.
 
 ### Changed
+
+- Update GitHub Actions security and commit-checking actions: Zizmor v0.7.1, Cocogitto action v4.2.0 and Gitleaks action v3.0.0.
 
 - Increase the mandatory CI line coverage threshold from 75% to 90%.
 - Expose the CLI as `cpctx`, retaining the `clip-context` package name and `-t` / `-s` short options.

@@ -7,7 +7,7 @@ use std::path::Path;
 
 use ignore::{DirEntry, WalkBuilder};
 
-use super::filter;
+use super::filter::{self, SelectionOptions};
 use super::{Snapshot, SourceFile};
 
 /// Read eligible project files, respecting nested `.gitignore` rules.
@@ -22,6 +22,22 @@ use super::{Snapshot, SourceFile};
 /// Fails if the root is not a directory or an included file cannot be read,
 /// or when traversing the directory fails. No partial result is returned.
 pub fn collect_project(root: &Path) -> io::Result<Snapshot> {
+    collect_project_with_options(root, &SelectionOptions::default())
+}
+
+/// Read project files respecting nested Git ignore rules and selection options.
+///
+/// Custom exclusions only remove more files; explicit extensions replace the
+/// default extension list but do not override ignored or hidden paths.
+///
+/// # Errors
+///
+/// Returns an error for invalid roots, traversal failures or unreadable source
+/// files. No partial snapshot is returned.
+pub fn collect_project_with_options(
+    root: &Path,
+    options: &SelectionOptions,
+) -> io::Result<Snapshot> {
     if !root.is_dir() {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
@@ -45,7 +61,10 @@ pub fn collect_project(root: &Path) -> io::Result<Snapshot> {
         .require_git(false)
         .hidden(false)
         .follow_links(false)
-        .filter_entry(is_included_entry);
+        .filter_entry({
+            let options = options.clone();
+            move |entry| is_included_entry(entry, &options)
+        });
 
     let mut files = Vec::new();
     for item in walker.build() {
@@ -53,7 +72,7 @@ pub fn collect_project(root: &Path) -> io::Result<Snapshot> {
         let Some(kind) = entry.file_type() else {
             continue;
         };
-        if !kind.is_file() || !filter::has_supported_extension(entry.path()) {
+        if !kind.is_file() || !filter::has_supported_extension(entry.path(), options) {
             continue;
         }
 
@@ -83,7 +102,7 @@ pub fn collect_project(root: &Path) -> io::Result<Snapshot> {
     })
 }
 
-fn is_included_entry(entry: &DirEntry) -> bool {
+fn is_included_entry(entry: &DirEntry, options: &SelectionOptions) -> bool {
     if entry.depth() == 0 {
         return true;
     }
@@ -95,5 +114,5 @@ fn is_included_entry(entry: &DirEntry) -> bool {
         return false;
     }
 
-    !kind.is_dir() || filter::includes_directory(entry.file_name())
+    !kind.is_dir() || filter::includes_directory(entry.file_name(), options)
 }
