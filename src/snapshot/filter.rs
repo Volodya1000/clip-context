@@ -133,8 +133,14 @@ mod tests {
     fn supported_extensions_are_case_insensitive() {
         let options = SelectionOptions::default();
         assert!(has_supported_extension(Path::new("src/main.RS"), &options));
-        assert!(has_supported_extension(Path::new("src/module.py"), &options));
+        assert!(has_supported_extension(
+            Path::new("src/module.py"),
+            &options
+        ));
         assert!(!has_supported_extension(Path::new("src/module"), &options));
-        assert!(!has_supported_extension(Path::new("assets/icon.png"), &options));
+        assert!(!has_supported_extension(
+            Path::new("assets/icon.png"),
+            &options
+        ));
     }
 }
