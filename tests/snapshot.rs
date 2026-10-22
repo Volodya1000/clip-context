@@ -4,6 +4,7 @@ mod support;
 
 use std::fs;
 use std::io::ErrorKind;
+use std::path::Path;
 
 use clip_context::snapshot::collect_project;
 use support::Fixture;
@@ -20,10 +21,16 @@ fn collects_known_source_extensions_and_preserves_content() {
     let paths: Vec<_> = snapshot
         .files()
         .iter()
-        .map(|file| file.relative_path().to_string_lossy().into_owned())
+        .map(|file| file.relative_path().to_path_buf())
         .collect();
 
-    assert_eq!(paths, ["docs/guide.md", "src/main.rs"]);
+    assert_eq!(
+        paths,
+        [
+            Path::new("docs").join("guide.md"),
+            Path::new("src").join("main.rs"),
+        ]
+    );
     assert_eq!(snapshot.files()[1].content(), "fn main() {}\n");
 }
 
@@ -73,13 +80,17 @@ fn sorts_files_consistently_and_builds_a_nested_tree() {
     let names: Vec<_> = snapshot
         .files()
         .iter()
-        .map(|file| file.relative_path().to_string_lossy().into_owned())
+        .map(|file| file.relative_path().to_path_buf())
         .collect();
-    assert_eq!(names.len(), 4);
-    assert_eq!(names[0], "readme.md");
-    assert_eq!(names[1], "src/a.py");
-    assert_eq!(names[2], "src/deep/x.rs");
-    assert_eq!(names[3], "src/z.py");
+    assert_eq!(
+        names,
+        [
+            Path::new("readme.md").to_path_buf(),
+            Path::new("src").join("a.py"),
+            Path::new("src").join("deep").join("x.rs"),
+            Path::new("src").join("z.py"),
+        ]
+    );
 
     let tree = snapshot.tree();
     assert!(tree.contains("src/"));
