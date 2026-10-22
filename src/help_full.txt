@@ -49,11 +49,12 @@ Profiles:
   Invalid profile values, unknown keys and missing profiles cause an error.
 
 Safety limits:
-  --max-bytes N              Selected source-byte budget (default: 262144 = 256 KiB).
-  --max-estimated-tokens N    Approximate source-token budget (default: 32000).
+  --max-bytes N              Final rendered UTF-8 byte limit (default: 262144).
+  --max-estimated-tokens N    Final output token estimate limit (default: 32000).
   Both require a positive integer; if repeated, the last value wins.
-  The more restrictive budget wins; estimated source tokens = ceil(bytes / 4).
-  Paths, Markdown framing and the tree are not counted in these source budgets.
+  The more restrictive output limit wins; estimated tokens = ceil(bytes / 4).
+  Paths, Markdown formatting and the tree (when present) all count.
+  Tree-only output reads paths without reading source file contents.
   Files are scanned for selected private-key markers and credential signatures.
   Collection fails before stdout or clipboard changes when validation fails.
   Secret detection is not exhaustive: review confidential code before sharing.
