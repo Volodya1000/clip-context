@@ -63,7 +63,7 @@ jobs:
           command -v cpctx
           test "$(cpctx --version)" = "clip-context $version"
           sudo dpkg -r clip-context
-          (cd dist && sha256sum *.tar.gz *.deb > SHA256SUMS.linux.txt)
+          (cd dist && sha256sum ./*.tar.gz ./*.deb > SHA256SUMS.linux.txt)
           PREFIX="$RUNNER_TEMP/prefix" \
             CPCTX_ARCHIVE="$PWD/dist/cpctx-v$version-linux-x86_64.tar.gz" \
             CPCTX_CHECKSUMS="$PWD/dist/SHA256SUMS.linux.txt" \
