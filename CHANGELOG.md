@@ -8,6 +8,8 @@ All notable changes to this project are documented here. Every pull request must
 
 - Prefilter known generated and hidden cache directories on SSH servers using supported tar exclude patterns, with automatic fallback for POSIX tar implementations without exclusions.
 
+- Build and smoke-test Windows/Linux release archives and an installable Debian package; verify SHA-256 assets, allow opt-in Windows user PATH installation, and publish only on verified version tags.
+
 - Expand `cpctx --help`/`-h` into a structured, English CLI reference with examples, defaults, safety and SSH notes; add precise invalid-option diagnostics and integration coverage.
 
 - Print exact rendered UTF-8 context bytes and fast approximate token counts to stderr after successful stdout/tree/clipboard output.
@@ -30,6 +32,12 @@ All notable changes to this project are documented here. Every pull request must
 - Integration tests for file selection, generated-directory exclusion, Markdown formatting, CLI outputs and errors.
 
 ### Changed
+
+- Replace outdated README with concise English and Russian user guides, language links, release installation links, and current CLI examples.
+
+- Enforce `--max-bytes` and `--max-estimated-tokens` on fully rendered context, including Markdown, paths and optional tree; tree-only output no longer reads source content.
+
+- Make `cpctx --help`/`-h` concise and introduce `--help-full` for the existing detailed reference; cover both with integration tests.
 
 - Update GitHub Actions security and commit-checking actions: Zizmor v0.7.1, Cocogitto action v4.2.0 and Gitleaks action v3.0.0.
 

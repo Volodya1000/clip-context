@@ -7,9 +7,12 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clip_context::profile::{DEFAULT_CONFIG_FILE, load_profile};
-use clip_context::remote::collect_remote_project_with_selection;
+use clip_context::remote::{
+    collect_remote_project_with_selection, collect_remote_tree_with_selection,
+};
 use clip_context::snapshot::{
-    ContextFormat, SelectionOptions, SnapshotLimits, collect_project_with_options_and_limits,
+    ContextFormat, SelectionOptions, SnapshotLimits, collect_project_tree,
+    collect_project_with_options_and_limits,
 };
 
 #[derive(Default)]
@@ -33,8 +36,9 @@ pub fn run_snapshot(mode: &OsStr, path: &OsStr, flags: &[OsString]) -> ExitCode 
     };
 
     let root: &Path = Path::new(path);
+    let tree_only = mode == "--tree" || mode == "-t";
     let snapshot_result = if let Some(destination) = arguments.ssh_destination.as_deref() {
-        collect_remote_project_with_selection(destination, root, &arguments.limits, |local_root| {
+        let resolve_remote = |local_root: &Path| {
             if arguments
                 .config_file
                 .as_deref()
@@ -46,10 +50,24 @@ pub fn run_snapshot(mode: &OsStr, path: &OsStr, flags: &[OsString]) -> ExitCode 
                 ));
             }
             resolve_selection(local_root, &arguments)
-        })
+        };
+        if tree_only {
+            collect_remote_tree_with_selection(destination, root, &arguments.limits, resolve_remote)
+        } else {
+            collect_remote_project_with_selection(
+                destination,
+                root,
+                &arguments.limits,
+                resolve_remote,
+            )
+        }
     } else {
         resolve_selection(root, &arguments).and_then(|options| {
-            collect_project_with_options_and_limits(root, &options, &arguments.limits)
+            if tree_only {
+                collect_project_tree(root, &options)
+            } else {
+                collect_project_with_options_and_limits(root, &options, &arguments.limits)
+            }
         })
     };
     match snapshot_result {
@@ -59,6 +77,10 @@ pub fn run_snapshot(mode: &OsStr, path: &OsStr, flags: &[OsString]) -> ExitCode 
             } else {
                 snapshot.to_markdown_with_format(arguments.format)
             };
+            if let Err(error) = arguments.limits.validate_rendered(&rendered) {
+                eprintln!("{error}");
+                return ExitCode::from(1);
+            }
             if mode == "--clipboard" || mode == "-c" {
                 if let Err(error) = crate::clipboard::copy_text(&rendered) {
                     eprintln!("Clipboard error: {error}");

@@ -1,0 +1,93 @@
+clip-context: collect and share project source context
+
+Usage:
+  cpctx -s PATH [OPTIONS]             Print project context
+  cpctx -t PATH [OPTIONS]             Print the selected directory tree
+  cpctx -c PATH [OPTIONS]             Copy project context to the local clipboard
+  cpctx -h, --help                    Show the short reference
+  cpctx --help-full                   Show this detailed reference
+  cpctx -V, --version                 Show the installed version
+
+Output modes:
+  -s, --stdout PATH      Write Markdown source files and their paths to stdout.
+  -t, --tree PATH        Write the selected file tree only, without file contents.
+  -c, --clipboard PATH   Copy Markdown context; do not print source text to stdout.
+  PATH is a required project directory (remote when --ssh is set).
+  If no arguments are given, the short reference is displayed.
+
+Output formats:
+  --format full|compact  For -s and -c (default: full).
+                         full includes a file tree and all selected source files.
+                         compact omits the duplicate tree and shortens file headings.
+                         Both formats preserve the original source content and paths.
+                         -t always writes the tree; --format does not change it.
+
+Selection:
+  --ext EXT              Select only extensions given on the CLI (repeatable).
+                         Use names without a dot, for example --ext rs --ext py.
+                         Extensions are matched case-insensitively.
+  --exclude-dir NAME     Skip directories with NAME at any depth (repeatable).
+                         Names must be individual directory names, not paths.
+  Without --ext or a profile extension list, common source extensions are used:
+    c, cpp, cs, css, go, h, hpp, html, java, js, json, kt, md, py, rs, sh,
+    sql, toml, ts, tsx, txt, yaml, yml.
+  Hidden files/directories, symbolic links and built-in generated directories
+  (build, dist, node_modules, target, venv, __pycache__) are excluded.
+  Root and nested .gitignore rules are honored, including ! negations.
+  Parent/global Git ignores and .git/info/exclude are not read.
+  Explicit/built-in exclusions and hidden-path rules override unignore patterns.
+
+Profiles:
+  --profile NAME         Load a named profile from .cpctx.toml (optional; once).
+  --config FILE          Use another TOML file; requires --profile (once).
+                         Relative paths are resolved from the project directory.
+  Profiles are opt-in and contain [profiles.NAME] with optional arrays:
+    extensions = ["rs", "toml"]
+    exclude_directories = ["generated"]
+  --ext replaces the profile's extension list (it does not append).
+  --exclude-dir adds exclusions to the profile; built-in exclusions still apply.
+  Invalid profile values, unknown keys and missing profiles cause an error.
+
+Safety limits:
+  --max-bytes N              Final rendered UTF-8 byte limit (default: 262144).
+  --max-estimated-tokens N    Final output token estimate limit (default: 32000).
+  Both require a positive integer; if repeated, the last value wins.
+  The more restrictive output limit wins; estimated tokens = ceil(bytes / 4).
+  Paths, Markdown formatting and the tree (when present) all count.
+  Tree-only output reads paths without reading source file contents.
+  Files are scanned for selected private-key markers and credential signatures.
+  Collection fails before stdout or clipboard changes when validation fails.
+  Secret detection is not exhaustive: review confidential code before sharing.
+
+Remote SSH:
+  --ssh HOST             Read PATH from an SSH alias, host or user@host (once).
+  Install cpctx locally only; the server needs SSH, a POSIX shell and tar.
+  Clipboard output stays local; existing SSH authentication and host keys apply.
+  A tar archive is transferred first, with a 16 MiB / 10000-entry safety cap.
+  Paths and archive entries are checked; links and devices are not extracted.
+  Filtering, profiles, budget limits and secret scanning run locally afterward.
+  The raw archive may exceed the cap even if many files would later be ignored.
+  Remote --config must refer to a file relative to the remote project root.
+
+Clipboard:
+  Windows: built-in PowerShell Set-Clipboard.
+  Linux: wl-copy on Wayland; xclip or xsel on X11.
+  Clipboard mode requires a working local graphical clipboard service.
+  There is no silent fallback to printing content on clipboard failure.
+
+Diagnostics:
+  Successful exports print exact rendered UTF-8 bytes and a quick estimate
+  (~1 token per 4 output bytes) to stderr, never into stdout or the clipboard.
+  These output metrics are separate from the source-file safety budgets.
+  Errors go to stderr with a nonzero exit status; invalid options suggest --help.
+
+Examples:
+  cpctx -s .
+  cpctx -t ./project
+  cpctx -c . --format compact
+  cpctx -s . --ext rs --ext toml --exclude-dir generated
+  cpctx -s . --profile backend
+  cpctx -s . --profile docs --config settings/profiles.toml
+  cpctx -s . --max-bytes 50000 --max-estimated-tokens 10000
+  cpctx -s /srv/app --ssh dev@server --format compact
+  cpctx -c '/home/dev/my project' --ssh dev-host --profile backend

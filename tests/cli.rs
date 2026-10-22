@@ -31,12 +31,9 @@ fn help_is_available() {
 
 #[test]
 fn help_is_a_complete_bounded_terminal_reference() {
-    let long = execute(&["--help"]);
-    let short = execute(&["-h"]);
+    let long = execute(&["--help-full"]);
     assert!(long.status.success());
-    assert_eq!(long.stdout, short.stdout);
     assert_eq!(long.stderr, Vec::<u8>::new());
-    assert_eq!(short.stderr, Vec::<u8>::new());
 
     let reference = String::from_utf8(long.stdout).expect("help must be UTF-8");
     for heading in [
@@ -62,6 +59,7 @@ fn help_is_a_complete_bounded_terminal_reference() {
         "--clipboard",
         "-h",
         "--help",
+        "--help-full",
         "-V",
         "--version",
         "--format",
@@ -97,6 +95,57 @@ fn help_is_a_complete_bounded_terminal_reference() {
     for line in reference.lines() {
         assert!(line.chars().count() <= 100, "overwide help line: {line}");
     }
+}
+
+#[test]
+fn short_help_is_concise_and_matches_no_args_and_h() {
+    let help = execute(&["--help"]);
+    assert!(help.status.success());
+    assert_eq!(help.stdout, execute(&["-h"]).stdout);
+    assert_eq!(help.stdout, execute(&[]).stdout);
+    assert_eq!(help.stderr, Vec::<u8>::new());
+    let reference = String::from_utf8(help.stdout).expect("help must be UTF-8");
+    assert!(reference.lines().count() <= 32);
+    assert!(reference.contains("cpctx --help-full"));
+    for option in [
+        "--stdout",
+        "--tree",
+        "--clipboard",
+        "--format",
+        "--ext",
+        "--exclude-dir",
+        "--profile",
+        "--config",
+        "--ssh",
+        "--max-bytes",
+        "--max-estimated-tokens",
+        "--version",
+    ] {
+        // The short usage shows the short mode aliases and their purposes.
+        if !matches!(option, "--stdout" | "--tree" | "--clipboard") {
+            assert!(
+                reference.contains(option),
+                "missing short help flag: {option}"
+            );
+        }
+    }
+    for line in reference.lines() {
+        assert!(line.len() <= 100, "overwide line: {line}");
+    }
+}
+
+#[test]
+fn help_full_provides_extra_details_without_changing_stdout_modes() {
+    let full = execute(&["--help-full"]);
+    let short = execute(&["--help"]);
+    assert!(full.status.success());
+    assert_eq!(full.stderr, Vec::<u8>::new());
+    assert!(full.stdout.len() > short.stdout.len());
+    let reference = String::from_utf8(full.stdout).expect("full help must be UTF-8");
+    assert!(reference.contains("Remote SSH:"));
+    assert!(reference.contains(".gitignore"));
+    assert!(reference.contains("Safety limits:"));
+    assert!(reference.contains("cpctx --help-full"));
 }
 
 #[test]
@@ -506,7 +555,7 @@ fn recognized_credentials_do_not_appear_in_stdout_or_stderr() {
 }
 
 #[test]
-fn tree_output_also_refuses_projects_containing_private_keys() {
+fn tree_output_does_not_read_private_key_contents() {
     let fixture = Fixture::new();
     let private_key_label = ["PRIVATE", "KEY"].join(" ");
     fixture.file(
@@ -514,8 +563,12 @@ fn tree_output_also_refuses_projects_containing_private_keys() {
         &format!("-----BEGIN {private_key_label}-----\n"),
     );
     let output = execute_on_project("-t", &fixture);
-    assert!(!output.status.success());
-    assert_eq!(output.stdout, Vec::<u8>::new());
+    assert!(output.status.success());
+    assert!(
+        String::from_utf8(output.stdout)
+            .expect("UTF-8 tree")
+            .contains("private.txt")
+    );
 }
 
 #[test]

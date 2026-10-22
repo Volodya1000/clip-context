@@ -11,7 +11,7 @@ use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use crate::snapshot::{
-    BUILTIN_EXCLUDED_DIRECTORIES, SelectionOptions, Snapshot, SnapshotLimits,
+    BUILTIN_EXCLUDED_DIRECTORIES, SelectionOptions, Snapshot, SnapshotLimits, collect_project_tree,
     collect_project_with_options_and_limits,
 };
 
@@ -58,6 +58,37 @@ pub fn collect_remote_project_with_selection<F>(
     remote_root: &Path,
     limits: &SnapshotLimits,
     select: F,
+) -> io::Result<Snapshot>
+where
+    F: FnOnce(&Path) -> io::Result<SelectionOptions>,
+{
+    collect_remote_with_selection(destination, remote_root, limits, select, true)
+}
+
+/// Collect a remote project's tree without downloading code contents into
+/// the final snapshot. Archive transfer bounds still apply.
+///
+/// # Errors
+///
+/// Returns any SSH, extraction, configuration or traversal error.
+pub fn collect_remote_tree_with_selection<F>(
+    destination: &str,
+    remote_root: &Path,
+    limits: &SnapshotLimits,
+    select: F,
+) -> io::Result<Snapshot>
+where
+    F: FnOnce(&Path) -> io::Result<SelectionOptions>,
+{
+    collect_remote_with_selection(destination, remote_root, limits, select, false)
+}
+
+fn collect_remote_with_selection<F>(
+    destination: &str,
+    remote_root: &Path,
+    limits: &SnapshotLimits,
+    select: F,
+    include_contents: bool,
 ) -> io::Result<Snapshot>
 where
     F: FnOnce(&Path) -> io::Result<SelectionOptions>,
@@ -131,7 +162,11 @@ where
     let directory = tempfile::tempdir()?;
     unpack_archive(&bytes, directory.path())?;
     let options = select(directory.path())?;
-    let mut snapshot = collect_project_with_options_and_limits(directory.path(), &options, limits)?;
+    let mut snapshot = if include_contents {
+        collect_project_with_options_and_limits(directory.path(), &options, limits)?
+    } else {
+        collect_project_tree(directory.path(), &options)?
+    };
     snapshot.set_project_name(
         remote_root
             .file_name()
@@ -272,6 +307,95 @@ mod tests {
         builder.into_inner().expect("test archive must finish")
     }
 
+    #[test]
+    fn destination_accepts_ssh_alias_and_user_at_host() {
+        assert!(validate_destination("production").is_ok());
+        assert!(validate_destination("operator@host.example").is_ok());
+        assert!(validate_destination("[::1]").is_ok());
+    }
+
+    #[test]
+    fn destination_rejects_ssh_flags_and_shell_syntax() {
+        for invalid in [
+            "",
+            "-F",
+            "user@host;sh",
+            "host name",
+            "host\nextra",
+            "x'bad",
+        ] {
+            assert!(validate_destination(invalid).is_err());
+        }
+    }
+
+    #[test]
+    fn paths_are_quoted_without_interpreting_shell_metacharacters() {
+        assert_eq!(quote_posix("/srv/a b"), "'/srv/a b'");
+        assert_eq!(quote_posix("/srv/a'b"), "'/srv/a'\\''b'");
+    }
+
+    #[test]
+    fn archive_rejects_paths_outside_the_temporary_root() {
+        assert!(safe_relative_path(Path::new("../secrets")).is_err());
+        assert!(safe_relative_path(Path::new("/etc/passwd")).is_err());
+        assert!(safe_relative_path(Path::new("C:\\Windows")).is_err());
+        assert!(safe_relative_path(Path::new("./src/main.rs")).is_ok());
+    }
+
+    #[test]
+    fn safe_archive_files_are_extracted_into_the_requested_root() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let bytes = archive_file("./src/main.rs", "fn main() {}");
+        unpack_archive(&bytes, directory.path()).expect("valid archive");
+        assert_eq!(
+            std::fs::read_to_string(directory.path().join("src/main.rs")).expect("extracted file"),
+            "fn main() {}"
+        );
+    }
+
+    #[test]
+    fn malformed_tar_archive_fails_without_extraction() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let result = unpack_archive(b"bad archive bytes", directory.path());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn duplicate_archive_file_entries_are_rejected() {
+        let mut builder = tar::Builder::new(Vec::new());
+        for value in ["first", "second"] {
+            let mut header = tar::Header::new_gnu();
+            header.set_size(value.len() as u64);
+            header.set_mode(0o644);
+            header.set_cksum();
+            builder
+                .append_data(&mut header, "same.rs", Cursor::new(value))
+                .expect("test archive creation");
+        }
+        let bytes = builder.into_inner().expect("test archive bytes");
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let err = unpack_archive(&bytes, directory.path())
+            .expect_err("a duplicate must not overwrite an earlier entry");
+        assert_eq!(err.kind(), io::ErrorKind::AlreadyExists);
+    }
+
+    #[test]
+    fn archive_does_not_materialize_symlinks() {
+        let mut builder = tar::Builder::new(Vec::new());
+        let mut header = tar::Header::new_gnu();
+        header.set_size(0);
+        header.set_mode(0o777);
+        header.set_entry_type(tar::EntryType::Symlink);
+        header.set_link_name("outside").expect("link name");
+        header.set_cksum();
+        builder
+            .append_data(&mut header, "src/link.rs", io::empty())
+            .expect("synthetic symlink");
+        let bytes = builder.into_inner().expect("test archive bytes");
+        let directory = tempfile::tempdir().expect("temporary directory");
+        unpack_archive(&bytes, directory.path()).expect("links should be skipped");
+        assert!(!directory.path().join("src/link.rs").exists());
+    }
     #[test]
     fn remote_tar_prefilters_only_locally_excluded_directories() {
         let command = super::remote_tar_command("/srv/project");
