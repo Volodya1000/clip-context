@@ -6,6 +6,10 @@ All notable changes to this project are documented here. Every pull request must
 
 ### Added
 
+- Respect nested `.gitignore` patterns and negated rules when collecting project context, even for directories without Git metadata; exclude rules outside the selected root.
+
+### Added
+
 - First deterministic UTF-8 source-file collector with a filtered directory tree and Markdown formatter.
 - `--stdout PATH` and `--tree PATH` commands, including diagnostics for invalid project paths.
 - Integration tests for file selection, generated-directory exclusion, Markdown formatting, CLI outputs and errors.

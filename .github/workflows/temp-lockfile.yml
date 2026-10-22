@@ -1,0 +1,27 @@
+name: Temporary dependency lock generation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - Cargo.toml
+
+permissions:
+  contents: read
+
+jobs:
+  lock:
+    name: Generate Cargo.lock for review
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec  # stable
+      - name: Resolve dependency tree and print lockfile
+        run: |
+          cargo generate-lockfile
+          echo LOCKFILE_BEGIN
+          base64 -w 0 Cargo.lock
+          echo
+          echo LOCKFILE_END

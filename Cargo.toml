@@ -10,6 +10,9 @@ readme = "README.md"
 keywords = ["cli", "clipboard", "developer-tools", "context"]
 categories = ["command-line-utilities", "development-tools"]
 
+[dependencies]
+ignore = "=0.4.29"
+
 [[bin]]
 name = "cpctx"
 path = "src/main.rs"
