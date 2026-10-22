@@ -9,17 +9,19 @@ A local-first Rust CLI for collecting source files and a filtered directory tree
 Requires Rust 1.85 or newer.
 
 ```sh
-cargo run --bin cc -- --help
-cargo run --bin cc -- --tree .
-cargo run --bin cc -- --stdout .
+cargo run --bin cpctx -- --help
+cargo run --bin cpctx -- --tree .
+cargo run --bin cpctx -- --stdout .
 cargo test --locked --all-targets --all-features
 ```
 
-After adding the executable to your PATH, the commands are `cc --tree .` and `cc --stdout .`. The shorthand forms `cc -t .` and `cc -s .` also work.\n\n`--stdout` prints Markdown with selected source files and an ordered tree. `--tree` prints only the tree. Both commands require a directory; they do not modify files or clipboard contents. You can redirect stdout to a file if needed.
+Install the application with `cargo install --locked --path .`. The commands are `cpctx --tree .` and `cpctx --stdout .`. The shorthand forms `cpctx -t .` and `cpctx -s .` also work.
+
+`--stdout` prints Markdown with selected source files and an ordered tree. `--tree` prints only the tree. Both commands require a directory; they do not modify files or clipboard contents. You can redirect stdout to a file if needed.
 
 By default, only common source-file extensions are collected. Hidden files/directories, symbolic links, and known generated directories such as `.git`, `.venv`, `target`, `build` and `node_modules` are excluded. Failing to read any selected file aborts the operation instead of producing a partial result.
 
-**Linux naming caveat:** `cc` is also the standard C-compiler command. Installing a Rust binary named `cc` earlier in the PATH can break compiling C and Rust projects. For now, prefer `cargo run --bin cc -- ...` instead of globally installing `cc`; the distribution workflow must resolve this collision safely.\n\n**Security limitation:** filenames and extensions alone do not detect secrets embedded inside source files. Until content scanning is implemented, do not pass untrusted or confidential repositories to `--stdout` or paste the output into an external service.
+**Security limitation:** filenames and extensions alone do not detect secrets embedded inside source files. Until content scanning is implemented, do not pass untrusted or confidential repositories to `--stdout` or paste the output into an external service.
 
 ## Quality gates
 

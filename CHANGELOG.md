@@ -13,7 +13,8 @@ All notable changes to this project are documented here. Every pull request must
 ### Changed
 
 - Increase the mandatory CI line coverage threshold from 75% to 90%.
-- Name the command-line executable `cc` while retaining the `clip-context` Cargo package; support shorter `-t` and `-s` flags.
+- Expose the CLI as `cpctx`, retaining the `clip-context` package name and `-t` / `-s` short options.
+- Split project collection, selection, tree rendering, and Markdown output into focused Rust modules with unit tests.
 
 ## [0.1.0]
 

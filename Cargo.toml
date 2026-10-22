@@ -11,7 +11,7 @@ keywords = ["cli", "clipboard", "developer-tools", "context"]
 categories = ["command-line-utilities", "development-tools"]
 
 [[bin]]
-name = "cc"
+name = "cpctx"
 path = "src/main.rs"
 
 [lints.rust]

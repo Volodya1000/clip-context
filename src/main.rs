@@ -6,7 +6,7 @@ use std::process::ExitCode;
 
 use clip_context::snapshot::collect_project;
 
-const HELP: &str = "clip-context: prepare project context for sharing\n\nUsage:\n  cc --stdout PATH, -s PATH  Print project source code and a directory tree\n  cc --tree PATH, -t PATH    Print the filtered directory tree\n  cc --help                  Show this message\n  cc --version               Show the version\n\nClipboard, SSH, custom selection and secret scanning are not implemented yet.";
+const HELP: &str = "clip-context: prepare project context for sharing\n\nUsage:\n  cpctx --stdout PATH, -s PATH  Print project source code and a directory tree\n  cpctx --tree PATH, -t PATH    Print the filtered directory tree\n  cpctx --help                  Show this message\n  cpctx --version               Show the version\n\nClipboard, SSH, custom selection and secret scanning are not implemented yet.";
 
 fn main() -> ExitCode {
     let arguments: Vec<_> = env::args_os().skip(1).collect();
@@ -45,7 +45,7 @@ fn main() -> ExitCode {
             }
         }
         _ => {
-            eprintln!("Unsupported arguments. Run cc --help.");
+            eprintln!("Unsupported arguments. Run cpctx --help.");
             ExitCode::from(2)
         }
     }
