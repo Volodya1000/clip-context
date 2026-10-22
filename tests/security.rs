@@ -26,7 +26,7 @@ fn typed_and_embedded_credentials_fail_before_any_export() {
                 .output()
                 .expect("CLI must run");
             assert!(!result.status.success());
-            assert!(result.stdout.is_empty());
+            assert_eq!(result.stdout, Vec::<u8>::new());
             let diagnostic = String::from_utf8_lossy(&result.stderr);
             assert!(diagnostic.contains("detected"));
             assert!(!diagnostic.contains("long_literal_credential"));
