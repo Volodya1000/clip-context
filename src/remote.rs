@@ -95,7 +95,10 @@ where
         .map_err(|error| io::Error::new(error.kind(), format!("could not start SSH: {error}")))?;
 
     let mut bytes = Vec::new();
-    let mut stdout = child.stdout.take().expect("SSH stdout must be piped");
+    let mut stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| io::Error::other("SSH stdout pipe was not available"))?;
     let read_result = stdout
         .by_ref()
         .take(MAX_REMOTE_ARCHIVE_BYTES as u64 + 1)
