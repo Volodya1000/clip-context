@@ -62,7 +62,10 @@ fn ssh_mode_rejects_remote_secrets_before_printing_any_content() {
     let fixture = Fixture::new();
     fixture.file("remote/src/main.rs", "public source");
     let synthetic_token = format!("ghp_{}", "Q".repeat(36));
-    fixture.file("remote/src/secret.rs", &format!("token = \"{synthetic_token}\""));
+    fixture.file(
+        "remote/src/secret.rs",
+        &format!("token = \"{synthetic_token}\""),
+    );
     prepare_mock_ssh(&fixture);
 
     let output = run_mock_ssh(&fixture, &[]);

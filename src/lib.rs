@@ -8,8 +8,8 @@
 //! ```
 
 pub mod profile;
-pub mod snapshot;
 pub mod remote;
+pub mod snapshot;
 
 /// Stable executable and package name.
 pub const APPLICATION_NAME: &str = env!("CARGO_PKG_NAME");

@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clip_context::profile::{DEFAULT_CONFIG_FILE, load_profile};
-use clip_context::remote::collect_remote_project;
+use clip_context::remote::collect_remote_project_with_selection;
 use clip_context::snapshot::{
     SelectionOptions, SnapshotLimits, collect_project_with_options_and_limits,
 };
@@ -32,18 +32,23 @@ pub fn run_snapshot(mode: &OsStr, path: &OsStr, flags: &[OsString]) -> ExitCode 
     };
 
     let root: &Path = Path::new(path);
-    let options: SelectionOptions = match resolve_selection(root, &arguments) {
-        Ok(options) => options,
-        Err(error) => {
-            eprintln!("{error}");
-            return ExitCode::from(1);
-        }
-    };
-
     let snapshot_result = if let Some(destination) = arguments.ssh_destination.as_deref() {
-        collect_remote_project(destination, root, &options, &arguments.limits)
+        collect_remote_project_with_selection(destination, root, &arguments.limits, |local_root| {
+            if arguments
+                .config_file
+                .as_deref()
+                .is_some_and(Path::is_absolute)
+            {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "remote profiles require a configuration path relative to the project",
+                ));
+            }
+            resolve_selection(local_root, &arguments)
+        })
     } else {
-        collect_project_with_options_and_limits(root, &options, &arguments.limits)
+        resolve_selection(root, &arguments)
+            .and_then(|options| collect_project_with_options_and_limits(root, &options, &arguments.limits))
     };
     match snapshot_result {
         Ok(snapshot) => {

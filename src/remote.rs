@@ -39,9 +39,34 @@ pub fn collect_remote_project(
     options: &SelectionOptions,
     limits: &SnapshotLimits,
 ) -> io::Result<Snapshot> {
+    collect_remote_project_with_selection(destination, remote_root, limits, |_root| {
+        Ok(options.clone())
+    })
+}
+
+/// Collect a remote project and resolve its selection rules after extraction.
+///
+/// This supports remote TOML profiles while retaining the exact local
+/// configuration validation and precedence rules.
+///
+/// # Errors
+///
+/// Returns any SSH, extraction, selection, or collection error.
+pub fn collect_remote_project_with_selection<F>(
+    destination: &str,
+    remote_root: &Path,
+    limits: &SnapshotLimits,
+    select: F,
+) -> io::Result<Snapshot>
+where
+    F: FnOnce(&Path) -> io::Result<SelectionOptions>,
+{
     validate_destination(destination)?;
     let remote_path = remote_root.to_str().ok_or_else(|| {
-        io::Error::new(io::ErrorKind::InvalidInput, "remote path must be valid UTF-8")
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "remote path must be valid UTF-8",
+        )
     })?;
     if remote_path.is_empty() || remote_path.contains(['\n', '\r', '\0']) {
         return Err(io::Error::new(
@@ -67,9 +92,7 @@ pub fn collect_remote_project(
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|error| {
-            io::Error::new(error.kind(), format!("could not start SSH: {error}"))
-        })?;
+        .map_err(|error| io::Error::new(error.kind(), format!("could not start SSH: {error}")))?;
 
     let mut bytes = Vec::new();
     let mut stdout = child.stdout.take().expect("SSH stdout must be piped");
@@ -103,7 +126,8 @@ pub fn collect_remote_project(
 
     let directory = tempfile::tempdir()?;
     unpack_archive(&bytes, directory.path())?;
-    let mut snapshot = collect_project_with_options_and_limits(directory.path(), options, limits)?;
+    let options = select(directory.path())?;
+    let mut snapshot = collect_project_with_options_and_limits(directory.path(), &options, limits)?;
     snapshot.set_project_name(
         remote_root
             .file_name()
@@ -223,7 +247,14 @@ mod tests {
 
     #[test]
     fn destination_rejects_ssh_flags_and_shell_syntax() {
-        for invalid in ["", "-F", "user@host;sh", "host name", "host\nextra", "x'bad"] {
+        for invalid in [
+            "",
+            "-F",
+            "user@host;sh",
+            "host name",
+            "host\nextra",
+            "x'bad",
+        ] {
             assert!(validate_destination(invalid).is_err());
         }
     }
@@ -248,8 +279,7 @@ mod tests {
         let bytes = archive_file("./src/main.rs", "fn main() {}");
         unpack_archive(&bytes, directory.path()).expect("valid archive");
         assert_eq!(
-            std::fs::read_to_string(directory.path().join("src/main.rs"))
-                .expect("extracted file"),
+            std::fs::read_to_string(directory.path().join("src/main.rs")).expect("extracted file"),
             "fn main() {}"
         );
     }
