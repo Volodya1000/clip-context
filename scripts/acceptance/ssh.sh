@@ -9,13 +9,16 @@ if [ "$(id -u)" -ne 0 ] && [ "${CPCTX_SSHD_UNPRIVILEGED:-0}" != 1 ]; then
   sshd=(sudo -n /usr/sbin/sshd)
 fi
 cleanup() {
+  status=$?
+  if [ "$status" -ne 0 ]; then
+    cat "$temporary/error" "$temporary/sshd.log" 2>/dev/null || true
+  fi
   if [ -n "$server_pid" ]; then
     if [ "${CPCTX_SSHD_UNPRIVILEGED:-0}" = 1 ] || [ "$(id -u)" -eq 0 ]; then
       kill "$server_pid" 2>/dev/null || true
     else
       sudo -n kill "$server_pid" 2>/dev/null || true
     fi
-    wait "$server_pid" 2>/dev/null || true
   fi
   rm -rf "$temporary"
 }
@@ -71,13 +74,16 @@ AllowUsers $(id -un)
 LogLevel ERROR
 ForceCommand $temporary/server-command
 EOF
-"${sshd[@]}" -D -e -f "$temporary/server.config" > "$temporary/sshd.log" 2>&1 &
-server_pid=$!
-for _ in {1..100}; do
-  if /usr/bin/ssh -F "$temporary/client.config" -o BatchMode=yes cpctx-acceptance true 2>/dev/null; then break; fi
-  if ! kill -0 "$server_pid" 2>/dev/null; then cat "$temporary/sshd.log" >&2; exit 1; fi
+"${sshd[@]}" -f "$temporary/server.config" -E "$temporary/sshd.log"
+# The daemon's actual PID is stable whether sudo uses a monitor/PTY or not.
+server_pid="$(cat "$temporary/server.pid")"
+ready=0
+for _ in {1..20}; do
+  if timeout --kill-after=2 3 /usr/bin/ssh -F "$temporary/client.config" \
+    -o BatchMode=yes -o ConnectTimeout=1 cpctx-acceptance true 2>/dev/null; then ready=1; break; fi
   sleep 0.1
 done
+test "$ready" = 1
 "$binary" -s "$project" --profile rust --format compact > "$temporary/local" 2>/dev/null
 PATH="$temporary/tools:$PATH" "$binary" -s "$project" --ssh cpctx-acceptance \
   --profile rust --format compact > "$temporary/remote" 2> "$temporary/error"
