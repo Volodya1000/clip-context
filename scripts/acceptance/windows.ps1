@@ -23,3 +23,6 @@ try {
 } finally {
     Remove-Item -Recurse -Force $Temporary
 }
+# The deliberately rejected native command leaves LASTEXITCODE=1. All assertions
+# above must finish before reporting success to PowerShell's workflow wrapper.
+exit 0
