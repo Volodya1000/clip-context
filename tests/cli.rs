@@ -35,8 +35,8 @@ fn help_is_a_complete_bounded_terminal_reference() {
     let short = execute(&["-h"]);
     assert!(long.status.success());
     assert_eq!(long.stdout, short.stdout);
-    assert!(long.stderr.is_empty());
-    assert!(short.stderr.is_empty());
+    assert_eq!(long.stderr, Vec::<u8>::new());
+    assert_eq!(short.stderr, Vec::<u8>::new());
 
     let reference = String::from_utf8(long.stdout).expect("help must be UTF-8");
     for heading in [
@@ -129,7 +129,7 @@ fn invalid_cli_arguments_have_actionable_diagnostics_and_no_stdout() {
     for (arguments, diagnostic) in cases {
         let output = execute_with_flags(&fixture, arguments);
         assert_eq!(output.status.code(), Some(2), "arguments: {arguments:?}");
-        assert!(output.stdout.is_empty(), "arguments: {arguments:?}");
+        assert_eq!(output.stdout, Vec::<u8>::new(), "arguments: {arguments:?}");
         let error = String::from_utf8(output.stderr).expect("diagnostic must be UTF-8");
         assert!(error.contains(diagnostic), "unexpected diagnostic: {error}");
         assert!(
