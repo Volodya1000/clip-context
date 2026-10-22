@@ -555,7 +555,7 @@ fn recognized_credentials_do_not_appear_in_stdout_or_stderr() {
 }
 
 #[test]
-fn tree_output_also_refuses_projects_containing_private_keys() {
+fn tree_output_does_not_read_private_key_contents() {
     let fixture = Fixture::new();
     let private_key_label = ["PRIVATE", "KEY"].join(" ");
     fixture.file(
@@ -563,8 +563,12 @@ fn tree_output_also_refuses_projects_containing_private_keys() {
         &format!("-----BEGIN {private_key_label}-----\n"),
     );
     let output = execute_on_project("-t", &fixture);
-    assert!(!output.status.success());
-    assert_eq!(output.stdout, Vec::<u8>::new());
+    assert!(output.status.success());
+    assert!(
+        String::from_utf8(output.stdout)
+            .expect("UTF-8 tree")
+            .contains("private.txt")
+    );
 }
 
 #[test]

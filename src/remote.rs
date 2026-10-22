@@ -11,7 +11,8 @@ use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use crate::snapshot::{
-    SelectionOptions, Snapshot, SnapshotLimits, collect_project_with_options_and_limits,
+    SelectionOptions, Snapshot, SnapshotLimits, collect_project_tree,
+    collect_project_with_options_and_limits,
 };
 
 /// Maximum bytes accepted from remote tar, including tar metadata (16 MiB).
@@ -57,6 +58,37 @@ pub fn collect_remote_project_with_selection<F>(
     remote_root: &Path,
     limits: &SnapshotLimits,
     select: F,
+) -> io::Result<Snapshot>
+where
+    F: FnOnce(&Path) -> io::Result<SelectionOptions>,
+{
+    collect_remote_with_selection(destination, remote_root, limits, select, true)
+}
+
+/// Collect a remote project's tree without downloading code contents into
+/// the final snapshot. Archive transfer bounds still apply.
+///
+/// # Errors
+///
+/// Returns any SSH, extraction, configuration or traversal error.
+pub fn collect_remote_tree_with_selection<F>(
+    destination: &str,
+    remote_root: &Path,
+    limits: &SnapshotLimits,
+    select: F,
+) -> io::Result<Snapshot>
+where
+    F: FnOnce(&Path) -> io::Result<SelectionOptions>,
+{
+    collect_remote_with_selection(destination, remote_root, limits, select, false)
+}
+
+fn collect_remote_with_selection<F>(
+    destination: &str,
+    remote_root: &Path,
+    limits: &SnapshotLimits,
+    select: F,
+    include_contents: bool,
 ) -> io::Result<Snapshot>
 where
     F: FnOnce(&Path) -> io::Result<SelectionOptions>,
@@ -130,7 +162,11 @@ where
     let directory = tempfile::tempdir()?;
     unpack_archive(&bytes, directory.path())?;
     let options = select(directory.path())?;
-    let mut snapshot = collect_project_with_options_and_limits(directory.path(), &options, limits)?;
+    let mut snapshot = if include_contents {
+        collect_project_with_options_and_limits(directory.path(), &options, limits)?
+    } else {
+        collect_project_tree(directory.path(), &options)?
+    };
     snapshot.set_project_name(
         remote_root
             .file_name()
