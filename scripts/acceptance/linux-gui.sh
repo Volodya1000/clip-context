@@ -2,6 +2,7 @@
 # Real headless X11 and Wayland clipboard servers; no clipboard mocks.
 set -euo pipefail
 binary="$(realpath "${1:-target/release/cpctx}")"
+deadline="$(command -v timeout)"
 temporary="$(mktemp -d)"
 x11_pid=''
 wayland_pid=''
@@ -28,17 +29,19 @@ done
 test -s "$temporary/display"
 export DISPLAY=":$(cat "$temporary/display")"
 unset WAYLAND_DISPLAY
-"$binary" -c "$temporary/project" > "$temporary/stdout" 2>/dev/null
+printf 'Checking X11/xclip export\n'
+"$deadline" 15 "$binary" -c "$temporary/project" > "$temporary/stdout" 2> "$temporary/error"
 test ! -s "$temporary/stdout"
-xclip -selection clipboard -o > "$temporary/actual"
+"$deadline" 15 xclip -selection clipboard -o > "$temporary/actual"
 cmp "$temporary/expected" "$temporary/actual"
 printf 'PASS real X11 clipboard persists after cpctx exit\n'
 # Keep only xsel discoverable to exercise the real fallback backend.
 mkdir "$temporary/xsel-only"
 ln -s "$(command -v xsel)" "$temporary/xsel-only/xsel"
-PATH="$temporary/xsel-only" "$binary" -c "$temporary/project" > "$temporary/stdout" 2> "$temporary/error"
+printf 'Checking X11/xsel export\n'
+PATH="$temporary/xsel-only" "$deadline" 15 "$binary" -c "$temporary/project" > "$temporary/stdout" 2> "$temporary/error"
 test ! -s "$temporary/stdout"
-xsel --clipboard --output > "$temporary/actual"
+"$deadline" 15 xsel --clipboard --output > "$temporary/actual"
 cmp "$temporary/expected" "$temporary/actual"
 printf 'PASS real xsel fallback clipboard\n'
 export XDG_RUNTIME_DIR="$temporary/runtime"
@@ -56,9 +59,10 @@ for _ in {1..100}; do
 done
 test -n "${WAYLAND_DISPLAY:-}"
 test -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
-"$binary" -c "$temporary/project" > "$temporary/stdout" 2> "$temporary/error"
+printf 'Checking Wayland export\n'
+"$deadline" 15 "$binary" -c "$temporary/project" > "$temporary/stdout" 2> "$temporary/error"
 test ! -s "$temporary/stdout"
-wl-paste --no-newline > "$temporary/actual"
+"$deadline" 15 wl-paste --no-newline > "$temporary/actual"
 cmp "$temporary/expected" "$temporary/actual"
 printf 'PASS real Wayland clipboard persists after cpctx exit\n'
 # A validation failure must leave the previous clipboard untouched.
@@ -67,6 +71,6 @@ if "$binary" -c "$temporary/project" --max-bytes 1 > "$temporary/stdout" 2>/dev/
   exit 1
 fi
 test ! -s "$temporary/stdout"
-wl-paste --no-newline > "$temporary/actual"
+"$deadline" 15 wl-paste --no-newline > "$temporary/actual"
 cmp "$temporary/expected" "$temporary/actual"
 printf 'PASS clipboard unchanged after validation failure\n'
