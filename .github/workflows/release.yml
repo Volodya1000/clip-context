@@ -109,8 +109,13 @@ jobs:
           $sha = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
           "$sha  $asset" | Set-Content dist/SHA256SUMS.windows.txt -Encoding ascii
           $directory = Join-Path $env:RUNNER_TEMP 'cpctx-release-smoke'
-          & .\scripts\install.ps1 -Version "v$version" -ArchivePath $archive \
-              -ChecksumPath 'dist/SHA256SUMS.windows.txt' -InstallDir $directory
+          $installArgs = @{
+              Version = "v$version"
+              ArchivePath = $archive
+              ChecksumPath = 'dist/SHA256SUMS.windows.txt'
+              InstallDir = $directory
+          }
+          & .\scripts\install.ps1 @installArgs
           $installed = Join-Path $directory 'cpctx.exe'
           if ((& $installed --version).Trim() -ne "clip-context $version") {
               throw 'Installed binary version does not match.'
