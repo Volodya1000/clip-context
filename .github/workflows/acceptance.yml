@@ -25,14 +25,21 @@ jobs:
           sudo mkdir -p /run/sshd
       - name: Build executable
         run: cargo build --release --locked
-      - name: Run live acceptance
+      - name: Exercise headless Linux CLI
+        timeout-minutes: 2
         run: |
           set -o pipefail
-          {
-            bash scripts/acceptance/linux.sh
-            bash scripts/acceptance/linux-gui.sh
-            bash scripts/acceptance/ssh.sh
-          } 2>&1 | tee acceptance-linux.log
+          bash scripts/acceptance/linux.sh 2>&1 | tee acceptance-linux.log
+      - name: Exercise native X11 and Wayland clipboard
+        timeout-minutes: 2
+        run: |
+          set -o pipefail
+          timeout --kill-after=5 90 bash scripts/acceptance/linux-gui.sh 2>&1 | tee -a acceptance-linux.log
+      - name: Exercise real key-authenticated SSH
+        timeout-minutes: 2
+        run: |
+          set -o pipefail
+          timeout --kill-after=5 90 bash scripts/acceptance/ssh.sh 2>&1 | tee -a acceptance-linux.log
       - name: Retain acceptance evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2

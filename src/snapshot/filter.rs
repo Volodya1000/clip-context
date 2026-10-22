@@ -175,7 +175,7 @@ impl SelectionRules {
         ]
         .iter()
         .any(|blocked| name.eq_ignore_ascii_case(OsStr::new(blocked)))
-            || name_text.to_ascii_lowercase().starts_with(".env.")
+            || name_text.to_ascii_lowercase().starts_with(".env")
         {
             return Some("protected credential or VCS path");
         }

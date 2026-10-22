@@ -30,18 +30,18 @@ test -s "$temporary/display"
 export DISPLAY=":$(cat "$temporary/display")"
 unset WAYLAND_DISPLAY
 printf 'Checking X11/xclip export\n'
-"$deadline" 15 "$binary" -c "$temporary/project" > "$temporary/stdout" 2> "$temporary/error"
+"$deadline" --kill-after=5 15 "$binary" -c "$temporary/project" > "$temporary/stdout" 2> "$temporary/error"
 test ! -s "$temporary/stdout"
-"$deadline" 15 xclip -selection clipboard -o > "$temporary/actual"
+"$deadline" --kill-after=5 15 xclip -selection clipboard -o > "$temporary/actual"
 cmp "$temporary/expected" "$temporary/actual"
 printf 'PASS real X11 clipboard persists after cpctx exit\n'
 # Keep only xsel discoverable to exercise the real fallback backend.
 mkdir "$temporary/xsel-only"
 ln -s "$(command -v xsel)" "$temporary/xsel-only/xsel"
 printf 'Checking X11/xsel export\n'
-PATH="$temporary/xsel-only" "$deadline" 15 "$binary" -c "$temporary/project" > "$temporary/stdout" 2> "$temporary/error"
+PATH="$temporary/xsel-only" "$deadline" --kill-after=5 15 "$binary" -c "$temporary/project" > "$temporary/stdout" 2> "$temporary/error"
 test ! -s "$temporary/stdout"
-"$deadline" 15 xsel --clipboard --output > "$temporary/actual"
+"$deadline" --kill-after=5 15 xsel --clipboard --output > "$temporary/actual"
 cmp "$temporary/expected" "$temporary/actual"
 printf 'PASS real xsel fallback clipboard\n'
 export XDG_RUNTIME_DIR="$temporary/runtime"
@@ -60,9 +60,9 @@ done
 test -n "${WAYLAND_DISPLAY:-}"
 test -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
 printf 'Checking Wayland export\n'
-"$deadline" 15 "$binary" -c "$temporary/project" > "$temporary/stdout" 2> "$temporary/error"
+"$deadline" --kill-after=5 15 "$binary" -c "$temporary/project" > "$temporary/stdout" 2> "$temporary/error"
 test ! -s "$temporary/stdout"
-"$deadline" 15 wl-paste --no-newline > "$temporary/actual"
+"$deadline" --kill-after=5 15 wl-paste --no-newline > "$temporary/actual"
 cmp "$temporary/expected" "$temporary/actual"
 printf 'PASS real Wayland clipboard persists after cpctx exit\n'
 # A validation failure must leave the previous clipboard untouched.
@@ -71,6 +71,6 @@ if "$binary" -c "$temporary/project" --max-bytes 1 > "$temporary/stdout" 2>/dev/
   exit 1
 fi
 test ! -s "$temporary/stdout"
-"$deadline" 15 wl-paste --no-newline > "$temporary/actual"
+"$deadline" --kill-after=5 15 wl-paste --no-newline > "$temporary/actual"
 cmp "$temporary/expected" "$temporary/actual"
 printf 'PASS clipboard unchanged after validation failure\n'
