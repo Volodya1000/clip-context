@@ -6,7 +6,7 @@ use std::fs;
 use std::io::ErrorKind;
 use std::path::Path;
 
-use clip_context::snapshot::collect_project;
+use clip_context::snapshot::{SelectionOptions, collect_project, collect_project_with_options};
 use support::Fixture;
 
 #[test]
@@ -211,4 +211,37 @@ fn symbolic_links_are_not_followed() {
     let snapshot = collect_project(fixture.path()).expect("the project should be readable");
     assert_eq!(snapshot.files().len(), 1);
     assert_eq!(snapshot.files()[0].content(), "safe");
+}
+
+#[test]
+fn selecting_specific_extensions_does_not_disable_builtin_exclusions() {
+    let fixture = Fixture::new();
+    fixture.file("src/main.rs", "keep-source");
+    fixture.file("src/helper.py", "not-selected");
+    fixture.file("target/generated.rs", "generated-source");
+    fixture.file(".hidden.rs", "hidden-source");
+
+    let mut options = SelectionOptions::default();
+    options.include_extension("rs");
+    let result = collect_project_with_options(fixture.path(), &options)
+        .expect("selection should work");
+
+    assert_eq!(result.files().len(), 1);
+    assert_eq!(result.files()[0].content(), "keep-source");
+}
+
+#[test]
+fn extra_directory_exclusions_preserve_nested_source_files_elsewhere() {
+    let fixture = Fixture::new();
+    fixture.file("src/main.rs", "keep-source");
+    fixture.file("generated/unwanted.rs", "skip-one");
+    fixture.file("src/generated/another.rs", "skip-two");
+
+    let mut options = SelectionOptions::default();
+    options.exclude_directory("generated");
+    let result = collect_project_with_options(fixture.path(), &options)
+        .expect("selection should work");
+
+    assert_eq!(result.files().len(), 1);
+    assert_eq!(result.files()[0].content(), "keep-source");
 }

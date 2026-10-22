@@ -5,7 +5,7 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-use super::filter;
+use super::filter::{self, SelectionOptions};
 use super::{Snapshot, SourceFile};
 
 /// Read eligible project files, rejecting unreadable and non-UTF-8 source files.
@@ -19,6 +19,18 @@ use super::{Snapshot, SourceFile};
 /// Fails if the path is not a directory or an included file cannot be read.
 /// No partial result is returned on failure.
 pub fn collect_project(root: &Path) -> io::Result<Snapshot> {
+    collect_project_with_options(root, &SelectionOptions::default())
+}
+
+/// Collect project files with additional selection rules.
+///
+/// Built-in exclusions still apply even when custom extensions or exclusions
+/// are supplied.
+///
+/// # Errors
+///
+/// Fails if the root is not a directory or a matching file cannot be read.
+pub fn collect_project_with_options(root: &Path, options: &SelectionOptions) -> io::Result<Snapshot> {
     if !root.is_dir() {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
@@ -33,7 +45,7 @@ pub fn collect_project(root: &Path) -> io::Result<Snapshot> {
         .into_owned();
 
     let mut files = Vec::new();
-    visit_directory(root, root, &mut files)?;
+    visit_directory(root, root, options, &mut files)?;
     files.sort_unstable_by(|left: &SourceFile, right: &SourceFile| {
         left.relative_path.cmp(&right.relative_path)
     });
@@ -43,7 +55,12 @@ pub fn collect_project(root: &Path) -> io::Result<Snapshot> {
     })
 }
 
-fn visit_directory(root: &Path, directory: &Path, files: &mut Vec<SourceFile>) -> io::Result<()> {
+fn visit_directory(
+    root: &Path,
+    directory: &Path,
+    options: &SelectionOptions,
+    files: &mut Vec<SourceFile>,
+) -> io::Result<()> {
     for result in fs::read_dir(directory)? {
         let entry = result?;
         let kind = entry.file_type()?;
@@ -57,10 +74,10 @@ fn visit_directory(root: &Path, directory: &Path, files: &mut Vec<SourceFile>) -
         }
 
         if kind.is_dir() {
-            if filter::includes_directory(&name) {
-                visit_directory(root, &entry.path(), files)?;
+            if filter::includes_directory(&name, options) {
+                visit_directory(root, &entry.path(), options, files)?;
             }
-        } else if kind.is_file() && filter::has_supported_extension(&entry.path()) {
+        } else if kind.is_file() && filter::has_supported_extension(&entry.path(), options) {
             let path = entry.path();
             let content = fs::read_to_string(&path).map_err(|error| {
                 io::Error::new(

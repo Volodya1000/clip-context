@@ -10,7 +10,8 @@ mod tree;
 
 use std::path::{Path, PathBuf};
 
-pub use collector::collect_project;
+pub use collector::{collect_project, collect_project_with_options};
+pub use filter::SelectionOptions;
 
 /// Source text together with its path relative to the project root.
 #[derive(Debug, Clone, PartialEq, Eq)]
