@@ -312,7 +312,6 @@ fn hidden_files_remain_excluded_even_when_unignored_by_gitignore() {
     assert_eq!(snapshot.files().len(), 1);
     assert_eq!(snapshot.files()[0].content(), "included");
 }
-    
 #[test]
 fn gitignore_and_explicit_extension_filters_apply_together() {
     let fixture = Fixture::new();
@@ -339,8 +338,8 @@ fn custom_directory_exclusions_cannot_be_undone_by_gitignore_negation() {
 
     let mut options = SelectionOptions::default();
     options.exclude_directory("generated");
-    let snapshot = collect_project_with_options(fixture.path(), &options)
-        .expect("exclusions should apply");
+    let snapshot =
+        collect_project_with_options(fixture.path(), &options).expect("exclusions should apply");
 
     assert_eq!(snapshot.files().len(), 1);
     assert_eq!(snapshot.files()[0].content(), "included");
