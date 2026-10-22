@@ -10,6 +10,10 @@ readme = "README.md"
 keywords = ["cli", "clipboard", "developer-tools", "context"]
 categories = ["command-line-utilities", "development-tools"]
 
+[[bin]]
+name = "cc"
+path = "src/main.rs"
+
 [lints.rust]
 unsafe_code = "forbid"
 missing_docs = "deny"

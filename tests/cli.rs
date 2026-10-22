@@ -7,14 +7,14 @@ use std::process::{Command, Output};
 use support::Fixture;
 
 fn execute(arguments: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_clip-context"))
+    Command::new(env!("CARGO_BIN_EXE_cc"))
         .args(arguments)
         .output()
         .expect("the compiled CLI executable must be runnable")
 }
 
 fn execute_on_project(mode: &str, fixture: &Fixture) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_clip-context"))
+    Command::new(env!("CARGO_BIN_EXE_cc"))
         .arg(mode)
         .arg(fixture.path())
         .output()
@@ -97,9 +97,33 @@ fn tree_command_prints_only_filenames() {
 }
 
 #[test]
+fn short_stdout_option_matches_long_option() {
+    let fixture = Fixture::new();
+    fixture.file("src/lib.rs", "pub fn result() -> bool { true }");
+
+    let short = execute_on_project("-s", &fixture);
+    let long = execute_on_project("--stdout", &fixture);
+    assert!(short.status.success());
+    assert_eq!(short.stdout, long.stdout);
+    assert_eq!(short.stderr, long.stderr);
+}
+
+#[test]
+fn short_tree_option_matches_long_option() {
+    let fixture = Fixture::new();
+    fixture.file("src/lib.rs", "pub fn result() -> bool { true }");
+
+    let short = execute_on_project("-t", &fixture);
+    let long = execute_on_project("--tree", &fixture);
+    assert!(short.status.success());
+    assert_eq!(short.stdout, long.stdout);
+    assert_eq!(short.stderr, long.stderr);
+}
+
+#[test]
 fn missing_project_path_does_not_produce_partial_stdout() {
     let fixture = Fixture::new();
-    let output = Command::new(env!("CARGO_BIN_EXE_clip-context"))
+    let output = Command::new(env!("CARGO_BIN_EXE_cc"))
         .arg("--stdout")
         .arg(fixture.path().join("missing"))
         .output()
@@ -113,7 +137,7 @@ fn missing_project_path_does_not_produce_partial_stdout() {
 fn invalid_project_path_fails_for_tree_mode_too() {
     let fixture = Fixture::new();
     fixture.file("single.py", "content");
-    let output = Command::new(env!("CARGO_BIN_EXE_clip-context"))
+    let output = Command::new(env!("CARGO_BIN_EXE_cc"))
         .arg("--tree")
         .arg(fixture.path().join("single.py"))
         .output()
@@ -125,7 +149,7 @@ fn invalid_project_path_fails_for_tree_mode_too() {
 #[test]
 fn unknown_extra_arguments_fail() {
     let fixture = Fixture::new();
-    let output = Command::new(env!("CARGO_BIN_EXE_clip-context"))
+    let output = Command::new(env!("CARGO_BIN_EXE_cc"))
         .arg("--stdout")
         .arg(fixture.path())
         .arg("--bad")

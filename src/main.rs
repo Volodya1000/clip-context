@@ -6,7 +6,7 @@ use std::process::ExitCode;
 
 use clip_context::snapshot::collect_project;
 
-const HELP: &str = "clip-context: prepare project context for sharing\n\nUsage:\n  clip-context --stdout PATH  Print project source code and a directory tree\n  clip-context --tree PATH    Print the filtered directory tree\n  clip-context --help         Show this message\n  clip-context --version      Show the version\n\nClipboard, SSH, custom selection and secret scanning are not implemented yet.";
+const HELP: &str = "clip-context: prepare project context for sharing\n\nUsage:\n  cc --stdout PATH, -s PATH  Print project source code and a directory tree\n  cc --tree PATH, -t PATH    Print the filtered directory tree\n  cc --help                  Show this message\n  cc --version               Show the version\n\nClipboard, SSH, custom selection and secret scanning are not implemented yet.";
 
 fn main() -> ExitCode {
     let arguments: Vec<_> = env::args_os().skip(1).collect();
@@ -28,10 +28,10 @@ fn main() -> ExitCode {
             );
             ExitCode::SUCCESS
         }
-        [mode, path] if mode == "--stdout" || mode == "--tree" => {
+        [mode, path] if mode == "--stdout" || mode == "-s" || mode == "--tree" || mode == "-t" => {
             match collect_project(Path::new(path)) {
                 Ok(snapshot) => {
-                    if mode == "--tree" {
+                    if mode == "--tree" || mode == "-t" {
                         print!("{}", snapshot.tree());
                     } else {
                         print!("{}", snapshot.to_markdown());
@@ -45,7 +45,7 @@ fn main() -> ExitCode {
             }
         }
         _ => {
-            eprintln!("Unsupported arguments. Run clip-context --help.");
+            eprintln!("Unsupported arguments. Run cc --help.");
             ExitCode::from(2)
         }
     }
