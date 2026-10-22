@@ -41,7 +41,9 @@ fn main() -> ExitCode {
                 || mode == "--tree"
                 || mode == "-t"
                 || mode == "--clipboard"
-                || mode == "-c" =>
+                || mode == "-c"
+                || mode == "--explain"
+                || mode == "--dry-run" =>
         {
             cli::run_snapshot(mode, path, flags)
         }

@@ -12,7 +12,7 @@ use clip_context::remote::{
 };
 use clip_context::snapshot::{
     ContextFormat, SelectionOptions, SnapshotLimits, collect_project_tree,
-    collect_project_with_options_and_limits,
+    collect_project_with_options_and_limits, explain_project,
 };
 
 #[derive(Default)]
@@ -38,6 +38,9 @@ pub fn run_snapshot(mode: &OsStr, path: &OsStr, flags: &[OsString]) -> ExitCode 
     };
 
     let root: &Path = Path::new(path);
+    if mode == "--explain" || mode == "--dry-run" {
+        return run_explanation(root, &arguments);
+    }
     let tree_only = mode == "--tree" || mode == "-t";
     let snapshot_result = if let Some(destination) = arguments.ssh_destination.as_deref() {
         let resolve_remote = |local_root: &Path| {
@@ -102,6 +105,25 @@ pub fn run_snapshot(mode: &OsStr, path: &OsStr, flags: &[OsString]) -> ExitCode 
             eprintln!("{}", crate::stats::OutputStats::from_utf8(&rendered));
             ExitCode::SUCCESS
         }
+        Err(error) => {
+            eprintln!("{error}");
+            ExitCode::from(1)
+        }
+    }
+}
+
+fn run_explanation(root: &Path, arguments: &SelectionArguments) -> ExitCode {
+    if arguments.ssh_destination.is_some() {
+        eprintln!(
+            "--explain/--dry-run currently require a local project; SSH would transfer source contents."
+        );
+        return ExitCode::from(2);
+    }
+    let result = resolve_selection(root, arguments)
+        .and_then(|options| explain_project(root, &options, &arguments.limits))
+        .and_then(|report| io::stdout().lock().write_all(report.as_bytes()));
+    match result {
+        Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("{error}");
             ExitCode::from(1)

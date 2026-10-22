@@ -4,6 +4,7 @@ Usage:
   cpctx -s PATH [OPTIONS]   Print source context to stdout
   cpctx -t PATH [OPTIONS]   Print the directory tree only
   cpctx -c PATH [OPTIONS]   Copy source context to the clipboard
+  cpctx --explain PATH     Preview paths, sizes and exclusion reasons
 
 Options:
   --format full|compact     Full Markdown or compact output (default: full)

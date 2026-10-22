@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Every pull request must
 
 ### Added
 
+- Add metadata-only --explain/--dry-run modes with source sizes, largest files, exclusion reasons and budget guidance; bound diagnostic traversal/output independently and reject SSH rather than downloading source for a dry run.
+
 - Add project-relative include/exclude globs in CLI and profiles, extensionless file selection and explicit safe hidden-configuration prefixes; retain Git ignores, credential checks and protected-path exclusions.
 
 - Add live Linux X11/Wayland, Windows PowerShell clipboard and real SSH acceptance scripts and CI evidence artifacts, with an explicit table of completed and pending release gates.

@@ -4,6 +4,8 @@ Usage:
   cpctx -s PATH [OPTIONS]             Print project context
   cpctx -t PATH [OPTIONS]             Print the selected directory tree
   cpctx -c PATH [OPTIONS]             Copy project context to the local clipboard
+  cpctx --explain PATH [OPTIONS]      Preview selection without source contents
+  cpctx --dry-run PATH [OPTIONS]      Alias for --explain
   cpctx -h, --help                    Show the short reference
   cpctx --help-full                   Show this detailed reference
   cpctx -V, --version                 Show the installed version
@@ -71,6 +73,17 @@ Safety limits:
   Files are scanned for selected private-key markers and credential signatures.
   Collection fails before stdout or clipboard changes when validation fails.
   Secret detection is not exhaustive: review confidential code before sharing.
+
+Selection preview:
+  --explain PATH / --dry-run PATH are metadata-only output modes for local
+  projects, with the same profiles/globs and root/nested .gitignore semantics.
+  They print selected source sizes, largest files and exclusion reasons.
+  Source contents and credentials are not checked; the source-byte total is
+  only a lower bound, not the exact rendered size or a guarantee of safe export.
+  Export limits are compared for guidance; they do not limit preview output.
+  Previews have independent safety caps of 10000 entries and 4 MiB of report.
+  Excluded directories are reported once without traversing their descendants.
+  SSH is rejected because the existing SSH transport downloads file contents.
 
 Remote SSH:
   --ssh HOST             Read PATH from an SSH alias, host or user@host (once).

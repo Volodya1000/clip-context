@@ -63,6 +63,20 @@ exclusions and `.gitignore` always win. Hidden paths require a literal include
 prefix. `.git`, `.env*`, credential directories and standard SSH private-key
 names remain protected. Quote patterns so your shell does not expand them.
 
+Preview selection before exporting:
+
+```sh
+cpctx --explain . --profile backend
+cpctx --dry-run . --include 'src/**' --max-estimated-tokens 8000
+```
+
+The local preview prints paths, source sizes, largest files and exclusion reasons;
+it reads metadata and `.gitignore`, not source contents. Its size estimate excludes
+Markdown/tree overhead and does not scan secrets or guarantee that export fits.
+Export limits are guidance in preview mode; diagnostics have separate 10,000-entry
+and 4 MiB bounds. Excluded directories are not traversed. SSH preview is not yet
+supported because that transport downloads source contents.
+
 ## Output size and format
 
 Use `--format compact` to keep all selected files but omit the repeated directory tree. The default `--format full` includes it. `-t` always produces only a tree.
