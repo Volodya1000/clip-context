@@ -20,7 +20,11 @@ fn main() -> ExitCode {
         }
 
         if arguments[0] == "--version" || arguments[0] == "-V" {
-            println!("{} {}", clip_context::APPLICATION_NAME, env!("CARGO_PKG_VERSION"));
+            println!(
+                "{} {}",
+                clip_context::APPLICATION_NAME,
+                env!("CARGO_PKG_VERSION")
+            );
             return ExitCode::SUCCESS;
         }
     }
