@@ -168,3 +168,69 @@ fn a_file_with_invalid_utf8_produces_no_output() {
     assert!(!output.status.success());
     assert_eq!(output.stdout, Vec::<u8>::new());
 }
+
+#[test]
+fn repeated_extensions_select_only_requested_types() {
+    let fixture = Fixture::new();
+    fixture.file("lib.rs", "rust-source");
+    fixture.file("script.py", "python-source");
+    fixture.file("config.toml", "toml-source");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_cpctx"))
+        .arg("-s")
+        .arg(fixture.path())
+        .args(["--ext", "rs", "--ext", "TOML"])
+        .output()
+        .expect("CLI executable must be runnable");
+
+    assert!(output.status.success());
+    let markdown = String::from_utf8(output.stdout).expect("Markdown is UTF-8");
+    assert!(markdown.contains("rust-source"));
+    assert!(markdown.contains("toml-source"));
+    assert!(!markdown.contains("python-source"));
+}
+
+#[test]
+fn additional_exclusions_apply_at_any_depth() {
+    let fixture = Fixture::new();
+    fixture.file("src/main.rs", "keep-this");
+    fixture.file("generated/first.rs", "not-included");
+    fixture.file("src/generated/second.rs", "also-excluded");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_cpctx"))
+        .arg("-s")
+        .arg(fixture.path())
+        .args(["--exclude-dir", "generated"])
+        .output()
+        .expect("CLI executable must be runnable");
+
+    assert!(output.status.success());
+    let markdown = String::from_utf8(output.stdout).expect("Markdown is UTF-8");
+    assert!(markdown.contains("keep-this"));
+    assert!(!markdown.contains("not-included"));
+    assert!(!markdown.contains("also-excluded"));
+}
+
+#[test]
+fn invalid_selection_flags_produce_no_snapshot_output() {
+    let fixture = Fixture::new();
+    fixture.file("src/main.rs", "readable-source");
+
+    for flags in [
+        vec!["--ext"],
+        vec!["--ext", "../rs"],
+        vec!["--exclude-dir", "../outside"],
+        vec!["--exclude-dir", ""],
+        vec!["--unknown", "value"],
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_cpctx"))
+            .arg("--stdout")
+            .arg(fixture.path())
+            .args(flags)
+            .output()
+            .expect("CLI executable must be runnable");
+        assert!(!output.status.success());
+        assert_eq!(output.stdout, Vec::<u8>::new());
+        assert_ne!(output.stderr, Vec::<u8>::new());
+    }
+}

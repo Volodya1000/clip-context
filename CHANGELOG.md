@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Every pull request must
 
 ### Added
 
+- Allow repeated `--ext EXT` and `--exclude-dir NAME` flags for project selection, with library support and integration tests.
+
 - First deterministic UTF-8 source-file collector with a filtered directory tree and Markdown formatter.
 - `--stdout PATH` and `--tree PATH` commands, including diagnostics for invalid project paths.
 - Integration tests for file selection, generated-directory exclusion, Markdown formatting, CLI outputs and errors.
