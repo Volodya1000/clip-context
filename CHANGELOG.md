@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Every pull request must
 
 ### Added
 
+- Gate release publication on trusted successful runtime/security/coverage/package/live-acceptance checks for the exact tagged commit; reject missing, pending, stale-success and wrong-app results and exercise negative cases without remote mutations.
+
 - Bound SSH archive reception and process completion with a default 60-second operation deadline and --ssh-timeout; add configurable library transport options and safe connection-vs-remote-command diagnostics.
 
 - Add --changed-since for local Git history/index/worktree selection, intersecting existing filters and preserving NUL-delimited filenames; omit deleted/untracked paths and expose unchanged-path reasons in previews.

@@ -85,6 +85,14 @@
           {
             "context": "Package Windows x86_64 (zip + PATH installer)",
             "integration_id": 15368
+          },
+          {
+            "context": "Live Linux acceptance (X11, Wayland, SSH)",
+            "integration_id": 15368
+          },
+          {
+            "context": "Live Windows acceptance",
+            "integration_id": 15368
           }
         ]
       }

@@ -12,6 +12,7 @@ cp dist/release-windows/*.zip dist/
 test "$(find dist -maxdepth 1 -type f \( -name '*.zip' -o -name '*.tar.gz' -o -name '*.deb' \) | wc -l)" -eq 3
 
 set -euo pipefail
+bash scripts/release/verify-checks.sh "$GITHUB_SHA"
 gh release create "$GITHUB_REF_NAME" dist/*.zip dist/*.tar.gz \
     dist/*.deb dist/SHA256SUMS.txt \
     --verify-tag --generate-notes --title "$GITHUB_REF_NAME"
