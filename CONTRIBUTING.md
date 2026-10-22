@@ -15,7 +15,7 @@ CI additionally checks coverage, minimum supported Rust version, dependency secu
 
 ## Commit and PR policy
 
-Commit subjects and pull-request titles use Conventional Commits, e.g. `feat(cli): support directory arguments` or `ci: add linting`. Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`. Commits are validated with Cocogitto; PR titles use `action-semantic-pull-request`. The latter uses `pull_request_target` without checking out or running contributor code, so it also works for public forks. Git hooks can optionally be installed with Cocogitto. Do not add Python-only project dependencies for repository policy.
+Commit subjects and pull-request titles use Conventional Commits, e.g. `feat(cli): support directory arguments` or `ci: add linting`. Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`. Commits and PR titles are both validated with Cocogitto during the regular `pull_request` workflow, without elevated token permissions. Git hooks can optionally be installed with Cocogitto. Do not add Python-only project dependencies for repository policy.
 
 **Every PR must change `CHANGELOG.md`.** CI enforces this, even for documentation and dependency changes. Document changes in `[Unreleased]`.
 
