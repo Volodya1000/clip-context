@@ -1,6 +1,10 @@
 //! End-to-end smoke tests of the command-line interface.
 
+mod support;
+
 use std::process::{Command, Output};
+
+use support::Fixture;
 
 fn execute(arguments: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_clip-context"))
@@ -9,12 +13,32 @@ fn execute(arguments: &[&str]) -> Output {
         .expect("the compiled CLI executable must be runnable")
 }
 
+fn execute_on_project(mode: &str, fixture: &Fixture) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_clip-context"))
+        .arg(mode)
+        .arg(fixture.path())
+        .output()
+        .expect("the CLI must be runnable")
+}
+
 #[test]
 fn help_is_available() {
     let output = execute(&["--help"]);
     assert!(output.status.success());
     assert_ne!(output.stdout, Vec::<u8>::new());
     assert_eq!(output.stderr, Vec::<u8>::new());
+}
+
+#[test]
+fn no_arguments_displays_usage() {
+    let output = execute(&[]);
+    assert!(output.status.success());
+    assert!(!output.stdout.is_empty());
+}
+
+#[test]
+fn short_help_is_available() {
+    assert!(execute(&["-h"]).status.success());
 }
 
 #[test]
@@ -30,6 +54,11 @@ fn version_is_available() {
 }
 
 #[test]
+fn short_version_is_available() {
+    assert!(execute(&["-V"]).status.success());
+}
+
+#[test]
 fn unexpected_arguments_fail() {
     let output = execute(&["--unknown"]);
     assert!(!output.status.success());
@@ -38,6 +67,81 @@ fn unexpected_arguments_fail() {
 
 #[test]
 fn conflicting_arguments_fail() {
-    let output = execute(&["--help", "--version"]);
+    assert!(!execute(&["--help", "--version"]).status.success());
+}
+
+#[test]
+fn stdout_command_prints_project_context() {
+    let fixture = Fixture::new();
+    fixture.file("code.py", "print('hello')");
+    fixture.file("ignored.png", "binary");
+
+    let output = execute_on_project("--stdout", &fixture);
+    assert!(output.status.success());
+    assert!(output.stderr.is_empty());
+    let body = String::from_utf8(output.stdout).expect("stdout must be UTF-8");
+    assert!(body.contains("code.py"));
+    assert!(body.contains("print('hello')"));
+    assert!(!body.contains("ignored.png"));
+}
+
+#[test]
+fn tree_command_prints_only_filenames() {
+    let fixture = Fixture::new();
+    fixture.file("src/main.rs", "super_secret_test_content");
+    let output = execute_on_project("--tree", &fixture);
+    assert!(output.status.success());
+    let body = String::from_utf8(output.stdout).expect("stdout must be UTF-8");
+    assert!(body.contains("main.rs"));
+    assert!(!body.contains("super_secret_test_content"));
+}
+
+#[test]
+fn missing_project_path_does_not_produce_partial_stdout() {
+    let fixture = Fixture::new();
+    let output = Command::new(env!("CARGO_BIN_EXE_clip-context"))
+        .arg("--stdout")
+        .arg(fixture.path().join("missing"))
+        .output()
+        .expect("the CLI must be runnable");
     assert!(!output.status.success());
+    assert!(output.stdout.is_empty());
+    assert!(!output.stderr.is_empty());
+}
+
+#[test]
+fn invalid_project_path_fails_for_tree_mode_too() {
+    let fixture = Fixture::new();
+    fixture.file("single.py", "content");
+    let output = Command::new(env!("CARGO_BIN_EXE_clip-context"))
+        .arg("--tree")
+        .arg(fixture.path().join("single.py"))
+        .output()
+        .expect("the CLI must be runnable");
+    assert!(!output.status.success());
+    assert!(output.stdout.is_empty());
+}
+
+#[test]
+fn unknown_extra_arguments_fail() {
+    let fixture = Fixture::new();
+    let output = Command::new(env!("CARGO_BIN_EXE_clip-context"))
+        .arg("--stdout")
+        .arg(fixture.path())
+        .arg("--bad")
+        .output()
+        .expect("the CLI must be runnable");
+    assert!(!output.status.success());
+}
+
+#[test]
+fn a_file_with_invalid_utf8_produces_no_output() {
+    let fixture = Fixture::new();
+    fixture.file("a.py", "valid");
+    std::fs::write(fixture.path().join("b.rs"), [0xff])
+        .expect("fixture file must be writable");
+
+    let output = execute_on_project("--stdout", &fixture);
+    assert!(!output.status.success());
+    assert!(output.stdout.is_empty());
 }

@@ -107,7 +107,7 @@ jobs:
         run: cargo audit --deny warnings
 
   coverage:
-    name: Test coverage (75% minimum)
+    name: Test coverage (90% minimum)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
@@ -121,7 +121,7 @@ jobs:
         with:
           tool: cargo-llvm-cov
       - name: Enforce line coverage
-        run: cargo llvm-cov --locked --workspace --all-features --fail-under-lines 75
+        run: cargo llvm-cov --locked --workspace --all-features --fail-under-lines 90
 
   conventional-commits:
     name: Conventional Commits (Cocogitto)
