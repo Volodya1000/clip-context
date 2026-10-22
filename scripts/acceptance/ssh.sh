@@ -4,10 +4,12 @@ set -euo pipefail
 binary="$(realpath "${1:-target/release/cpctx}")"
 temporary="$(mktemp -d)"
 server_pid=''
+pam=yes
 sshd=(/usr/sbin/sshd)
 if [ "$(id -u)" -ne 0 ] && [ "${CPCTX_SSHD_UNPRIVILEGED:-0}" != 1 ]; then
   sshd=(sudo -n /usr/sbin/sshd)
 fi
+if [ "${CPCTX_SSHD_UNPRIVILEGED:-0}" = 1 ]; then pam=no; fi
 cleanup() {
   status=$?
   if [ "$status" -ne 0 ]; then
@@ -69,18 +71,19 @@ AuthorizedKeysFile $temporary/client.pub
 StrictModes no
 PasswordAuthentication no
 KbdInteractiveAuthentication no
-UsePAM no
+UsePAM $pam
 AllowUsers $(id -un)
-LogLevel ERROR
+LogLevel VERBOSE
 ForceCommand $temporary/server-command
 EOF
 "${sshd[@]}" -f "$temporary/server.config" -E "$temporary/sshd.log"
 # The daemon's actual PID is stable whether sudo uses a monitor/PTY or not.
 server_pid="$(cat "$temporary/server.pid")"
 ready=0
+printf 'Checking disposable SSH key authentication\n'
 for _ in {1..20}; do
   if timeout --kill-after=2 3 /usr/bin/ssh -F "$temporary/client.config" \
-    -o BatchMode=yes -o ConnectTimeout=1 cpctx-acceptance true 2>/dev/null; then ready=1; break; fi
+    -o BatchMode=yes -o ConnectTimeout=1 cpctx-acceptance true 2> "$temporary/error"; then ready=1; break; fi
   sleep 0.1
 done
 test "$ready" = 1
