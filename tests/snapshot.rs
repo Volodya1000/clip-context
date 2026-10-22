@@ -245,3 +245,102 @@ fn extra_directory_exclusions_preserve_nested_source_files_elsewhere() {
     assert_eq!(result.files().len(), 1);
     assert_eq!(result.files()[0].content(), "keep-source");
 }
+
+#[test]
+fn respects_project_root_gitignore_patterns_and_negations() {
+    let fixture = Fixture::new();
+    fixture.file(".gitignore", "*.py\n!keep.py\n");
+    fixture.file("keep.py", "included");
+    fixture.file("drop.py", "excluded");
+    fixture.file("source.rs", "source");
+
+    let snapshot = collect_project(fixture.path()).expect("project snapshot succeeds");
+    let names: Vec<_> = snapshot
+        .files()
+        .iter()
+        .map(|file| file.relative_path().to_path_buf())
+        .collect();
+    assert_eq!(names, [Path::new("keep.py"), Path::new("source.rs")]);
+}
+
+#[test]
+fn nested_gitignore_overrides_parent_patterns() {
+    let fixture = Fixture::new();
+    fixture.file(".gitignore", "*.py\n");
+    fixture.file("nested/.gitignore", "!keep.py\n");
+    fixture.file("nested/keep.py", "included");
+    fixture.file("nested/drop.py", "excluded");
+    fixture.file("root.py", "excluded");
+
+    let snapshot = collect_project(fixture.path()).expect("project snapshot succeeds");
+    assert_eq!(snapshot.files().len(), 1);
+    assert_eq!(snapshot.files()[0].content(), "included");
+}
+
+#[test]
+fn ignored_directories_are_not_traversed() {
+    let fixture = Fixture::new();
+    fixture.file(".gitignore", "private/\n");
+    fixture.file("private/secret.rs", "not included");
+    fixture.file("public/code.rs", "included");
+
+    let snapshot = collect_project(fixture.path()).expect("project snapshot succeeds");
+    assert_eq!(snapshot.files().len(), 1);
+    assert_eq!(snapshot.files()[0].content(), "included");
+}
+
+#[test]
+fn gitignore_is_respected_without_git_metadata_directory() {
+    let fixture = Fixture::new();
+    fixture.file(".gitignore", "ignored.rs\n");
+    fixture.file("ignored.rs", "excluded");
+    fixture.file("kept.rs", "kept");
+
+    let snapshot = collect_project(fixture.path()).expect("standalone project succeeds");
+    assert_eq!(snapshot.files().len(), 1);
+    assert_eq!(snapshot.files()[0].content(), "kept");
+}
+
+#[test]
+fn hidden_files_remain_excluded_even_when_unignored_by_gitignore() {
+    let fixture = Fixture::new();
+    fixture.file(".gitignore", "!.secret.py\n");
+    fixture.file(".secret.py", "hidden");
+    fixture.file("visible.py", "included");
+
+    let snapshot = collect_project(fixture.path()).expect("project snapshot succeeds");
+    assert_eq!(snapshot.files().len(), 1);
+    assert_eq!(snapshot.files()[0].content(), "included");
+}
+#[test]
+fn gitignore_and_explicit_extension_filters_apply_together() {
+    let fixture = Fixture::new();
+    fixture.file(".gitignore", "*.rs\n!src/keep.rs\n");
+    fixture.file("src/keep.rs", "included");
+    fixture.file("src/drop.rs", "excluded");
+    fixture.file("src/script.py", "not-selected");
+
+    let mut options = SelectionOptions::default();
+    options.include_extension("rs");
+    let snapshot = collect_project_with_options(fixture.path(), &options)
+        .expect("combined selection should succeed");
+
+    assert_eq!(snapshot.files().len(), 1);
+    assert_eq!(snapshot.files()[0].content(), "included");
+}
+
+#[test]
+fn custom_directory_exclusions_cannot_be_undone_by_gitignore_negation() {
+    let fixture = Fixture::new();
+    fixture.file(".gitignore", "!generated/keep.rs\n");
+    fixture.file("generated/keep.rs", "excluded");
+    fixture.file("src/keep.rs", "included");
+
+    let mut options = SelectionOptions::default();
+    options.exclude_directory("generated");
+    let snapshot =
+        collect_project_with_options(fixture.path(), &options).expect("exclusions should apply");
+
+    assert_eq!(snapshot.files().len(), 1);
+    assert_eq!(snapshot.files()[0].content(), "included");
+}

@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Every pull request must
 
 ### Added
 
+- Respect project-root and nested `.gitignore` patterns, including negations, without reading ignore files outside the chosen root.
+
 - Allow repeated `--ext EXT` and `--exclude-dir NAME` flags for project selection, with library support and integration tests.
 
 - First deterministic UTF-8 source-file collector with a filtered directory tree and Markdown formatter.

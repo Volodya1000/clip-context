@@ -2,7 +2,7 @@
 
 A local-first Rust CLI for collecting source files and a filtered directory tree into a reproducible text snapshot.
 
-**Current stage:** project snapshots and stdout. Native clipboard integration, `.gitignore` semantics, configurable profiles, secret detection and SSH are **not yet implemented**.
+**Current stage:** project snapshots, file selection, nested `.gitignore`, and stdout. Native clipboard integration, configurable profiles, secret detection and SSH are **not yet implemented**.
 
 ## Example
 
@@ -22,11 +22,13 @@ cargo test --locked --all-targets --all-features
 - `--ext EXT` can be repeated to restrict selection to exactly those extensions, replacing the built-in extension allowlist.
 - `--exclude-dir NAME` can be repeated to exclude directories by name at every depth, in addition to built-in exclusions.
 
+Root and nested `.gitignore` files determine which files are included. Negated patterns (`!file`) work, including outside Git repositories. Ignore files from parent directories, global Git settings and `.git/info/exclude` are deliberately not read, so results only depend on the chosen root. CLI exclusions, hidden-file rules, and built-in generated-directory exclusions always take precedence over an unignore rule.
+
 Both commands require a project directory. They do not modify any files or clipboard contents. All source files are read before output is printed, so a read or UTF-8 error does not produce a partial snapshot.
 
 By default, only common source-file extensions are collected. Hidden files/directories, symbolic links, and known generated directories such as `.git`, `.venv`, `target`, `build` and `node_modules` are excluded. The built-in directory exclusions remain active when options are supplied.
 
-**Security limitation:** extension filtering does not find secrets embedded inside source files and does not yet interpret `.gitignore`. Do not send snapshots of confidential or untrusted repositories to external services.
+**Security limitation:** neither `.gitignore` nor extension filtering finds secrets embedded in source files. Do not send snapshots of confidential or untrusted repositories to external services.
 
 ## Quality gates
 
@@ -37,11 +39,12 @@ Every PR must follow Conventional Commits naming and change `CHANGELOG.md`. See 
 ## Roadmap
 
 1. Deterministic project snapshots and plain output (implemented).
-2. Additional directory and extension selection via CLI (this PR).
-3. Full `.gitignore` and user TOML profiles.
-4. Content-based secret detection and safe output limits.
-5. Native Windows/Linux clipboard.
-6. SSH remote collection and packaging.
+2. Additional directory and extension selection via CLI (implemented).
+3. Root and nested `.gitignore` rules (this PR).
+4. User TOML profiles.
+5. Content-based secret detection and safe output limits.
+6. Native Windows/Linux clipboard.
+7. SSH remote collection and packaging.
 
 ## License
 
