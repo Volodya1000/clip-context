@@ -9,6 +9,7 @@ use std::ffi::OsString;
 use std::process::ExitCode;
 
 const HELP: &str = include_str!("help.txt");
+const HELP_FULL: &str = include_str!("help_full.txt");
 
 fn main() -> ExitCode {
     let arguments: Vec<OsString> = env::args_os().skip(1).collect();
@@ -20,6 +21,10 @@ fn main() -> ExitCode {
         }
         [argument] if argument == "--help" || argument == "-h" => {
             print!("{HELP}");
+            ExitCode::SUCCESS
+        }
+        [argument] if argument == "--help-full" => {
+            print!("{HELP_FULL}");
             ExitCode::SUCCESS
         }
         [argument] if argument == "--version" || argument == "-V" => {

@@ -21,9 +21,9 @@ cpctx -s . --max-bytes 50000 --max-estimated-tokens 10000
 cargo test --locked --all-targets --all-features
 ```
 
-For a complete, terminal-friendly command reference, run `cpctx --help` (or `cpctx -h`).
-The authoritative help text is maintained in [`src/help.txt`](src/help.txt), so this
-README focuses on workflows and explanations rather than a second option table.
+Run `cpctx --help` (or `cpctx -h`) for a concise option reference and
+`cpctx --help-full` for the complete English manual. The references are maintained
+in [`src/help.txt`](src/help.txt) and [`src/help_full.txt`](src/help_full.txt).
 
 Root and nested `.gitignore` files determine which files are included. Negated patterns (`!file`) work, including outside Git repositories. Ignore files from parent directories, global Git settings and `.git/info/exclude` are deliberately not read, so results only depend on the chosen root. CLI exclusions, hidden-file rules, and built-in generated-directory exclusions always take precedence over an unignore rule.
 
