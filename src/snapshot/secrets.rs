@@ -5,14 +5,14 @@
 
 /// A non-sensitive description of suspicious material.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum SecretKind {
+pub enum SecretKind {
     PrivateKey,
     AccessToken,
     CredentialAssignment,
 }
 
 impl SecretKind {
-    pub(crate) fn description(self) -> &'static str {
+    pub const fn description(self) -> &'static str {
         match self {
             Self::PrivateKey => "private key",
             Self::AccessToken => "access token",
@@ -21,8 +21,22 @@ impl SecretKind {
     }
 }
 
+const PREFIXES: &[(&str, usize)] = &[
+    ("github_pat_", 20),
+    ("ghp_", 30),
+    ("gho_", 30),
+    ("ghu_", 30),
+    ("ghs_", 30),
+    ("ghr_", 30),
+    ("glpat-", 16),
+    ("sk_live_", 16),
+    ("xoxb-", 24),
+    ("xoxp-", 24),
+    ("sk-", 24),
+];
+
 /// Detect selected well-known secrets without returning their contents.
-pub(crate) fn detect_secret(content: &str) -> Option<SecretKind> {
+pub fn detect_secret(content: &str) -> Option<SecretKind> {
     if content.lines().any(|line| {
         let trimmed = line.trim();
         trimmed.starts_with("-----BEGIN ") && trimmed.ends_with("PRIVATE KEY-----")
@@ -30,19 +44,7 @@ pub(crate) fn detect_secret(content: &str) -> Option<SecretKind> {
         return Some(SecretKind::PrivateKey);
     }
 
-    const PREFIXES: &[(&str, usize)] = &[
-        ("github_pat_", 20),
-        ("ghp_", 30),
-        ("gho_", 30),
-        ("ghu_", 30),
-        ("ghs_", 30),
-        ("ghr_", 30),
-        ("glpat-", 16),
-        ("sk_live_", 16),
-        ("xoxb-", 24),
-        ("xoxp-", 24),
-        ("sk-", 24),
-    ];
+
 
     if PREFIXES
         .iter()

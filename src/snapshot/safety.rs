@@ -33,23 +33,23 @@ impl Default for SnapshotLimits {
 impl SnapshotLimits {
     /// Cumulative maximum source bytes across all selected files.
     #[must_use]
-    pub fn max_source_bytes(self) -> usize {
+    pub const fn max_source_bytes(self) -> usize {
         self.max_source_bytes.get()
     }
 
     /// Cumulative estimated tokens across all selected files.
     #[must_use]
-    pub fn max_estimated_tokens(self) -> usize {
+    pub const fn max_estimated_tokens(self) -> usize {
         self.max_estimated_tokens.get()
     }
 
     /// Change the maximum source byte budget.
-    pub fn set_max_source_bytes(&mut self, value: NonZeroUsize) {
+    pub const fn set_max_source_bytes(&mut self, value: NonZeroUsize) {
         self.max_source_bytes = value;
     }
 
     /// Change the maximum estimated token budget.
-    pub fn set_max_estimated_tokens(&mut self, value: NonZeroUsize) {
+    pub const fn set_max_estimated_tokens(&mut self, value: NonZeroUsize) {
         self.max_estimated_tokens = value;
     }
 
