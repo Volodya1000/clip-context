@@ -12,7 +12,7 @@ Options:
   --profile NAME            Use named selection profile from .cpctx.toml
   --config FILE             Override profile file (requires --profile)
   --ssh HOST                Read a remote PATH through SSH
-  --max-bytes N             Maximum context bytes (default: 262144)
+  --max-bytes N             Byte budget (default: 262144)
   --max-estimated-tokens N  Approximate context tokens (default: 32000)
   -h, --help                Short usage reference
   --help-full               Detailed flags, safety, SSH and examples
