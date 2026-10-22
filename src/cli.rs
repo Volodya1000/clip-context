@@ -47,8 +47,9 @@ pub fn run_snapshot(mode: &OsStr, path: &OsStr, flags: &[OsString]) -> ExitCode 
             resolve_selection(local_root, &arguments)
         })
     } else {
-        resolve_selection(root, &arguments)
-            .and_then(|options| collect_project_with_options_and_limits(root, &options, &arguments.limits))
+        resolve_selection(root, &arguments).and_then(|options| {
+            collect_project_with_options_and_limits(root, &options, &arguments.limits)
+        })
     };
     match snapshot_result {
         Ok(snapshot) => {
