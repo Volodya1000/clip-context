@@ -81,6 +81,7 @@ fn include_cannot_override_credential_paths_git_metadata_or_generated_directorie
     for path in [
         ".env",
         ".env.example",
+        ".envrc",
         ".git/config",
         ".ssh/config",
         ".aws/config",
@@ -102,6 +103,7 @@ fn include_cannot_override_credential_paths_git_metadata_or_generated_directorie
         "**/*",
         ".env",
         ".env.example",
+        ".envrc",
         ".git/**",
         ".ssh/**",
         ".aws/**",
