@@ -40,7 +40,10 @@ pub fn load_profile(config_file: &Path, profile_name: &str) -> io::Result<Select
     let contents = fs::read_to_string(config_file).map_err(|error| {
         io::Error::new(
             error.kind(),
-            format!("cannot read profile file {}: {error}", config_file.display()),
+            format!(
+                "cannot read profile file {}: {error}",
+                config_file.display()
+            ),
         )
     })?;
 
@@ -54,7 +57,10 @@ pub fn load_profile(config_file: &Path, profile_name: &str) -> io::Result<Select
     let profile = configuration.profiles.get(profile_name).ok_or_else(|| {
         io::Error::new(
             io::ErrorKind::InvalidInput,
-            format!("unknown profile {profile_name:?} in {}", config_file.display()),
+            format!(
+                "unknown profile {profile_name:?} in {}",
+                config_file.display()
+            ),
         )
     })?;
 

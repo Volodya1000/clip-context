@@ -68,9 +68,9 @@ fn parse_selection(flags: &[OsString]) -> Result<SelectionArguments, &'static st
             "--profile"
                 if arguments.profile.is_none()
                     && !value.is_empty()
-                    && value
-                        .bytes()
-                        .all(|character| character.is_ascii_alphanumeric() || matches!(character, b'-' | b'_')) =>
+                    && value.bytes().all(|character| {
+                        character.is_ascii_alphanumeric() || matches!(character, b'-' | b'_')
+                    }) =>
             {
                 arguments.profile = Some(value.to_owned());
             }

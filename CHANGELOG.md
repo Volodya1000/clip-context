@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Every pull request must
 
 ### Added
 
+- Add strict named TOML selection profiles with `--profile` / `--config`, reusable validation, and CLI override precedence.
+
 - Respect project-root and nested `.gitignore` patterns, including negations, without reading ignore files outside the chosen root.
 
 - Allow repeated `--ext EXT` and `--exclude-dir NAME` flags for project selection, with library support and integration tests.

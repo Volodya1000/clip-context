@@ -30,7 +30,10 @@ impl SelectionOptions {
     /// Return whether an extension is safe to use in a selection rule.
     #[must_use]
     pub fn valid_extension(extension: &str) -> bool {
-        !extension.is_empty() && extension.bytes().all(|character| character.is_ascii_alphanumeric())
+        !extension.is_empty()
+            && extension
+                .bytes()
+                .all(|character| character.is_ascii_alphanumeric())
     }
 
     /// Return whether a directory exclusion contains only a single name.

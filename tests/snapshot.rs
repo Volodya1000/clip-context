@@ -383,7 +383,10 @@ fn configuration_errors_are_not_silently_recovered() {
     use clip_context::profile::load_profile;
 
     let fixture = Fixture::new();
-    fixture.file("selection.toml", "[profiles.source]\nexclude_directories = [4]\n");
+    fixture.file(
+        "selection.toml",
+        "[profiles.source]\nexclude_directories = [4]\n",
+    );
     let error = load_profile(&fixture.path().join("selection.toml"), "source")
         .expect_err("invalid type must fail");
     assert_eq!(error.kind(), ErrorKind::InvalidData);
