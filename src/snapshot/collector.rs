@@ -43,22 +43,43 @@ pub fn collect_project_with_options(
     collect_project_with_options_and_limits(root, options, &SnapshotLimits::default())
 }
 
-/// Collect selected project files with a bounded byte/token-estimate budget
-/// and high-confidence detection of credentials in each included source file.
+/// Collect source files with a necessary early bound derived from final output
+/// budgets, plus credential checks.
 ///
-/// Exceeding either budget or finding a detected credential aborts collection.
-/// No partial snapshot is returned, and errors never contain secret contents.
-/// The byte budget counts selected source contents rather than Markdown framing;
-/// the token budget is a heuristic, not a model tokenizer.
+/// Source text larger than the eventual output ceiling is rejected early.
+/// The definitive check for output bytes, filenames and Markdown framing runs
+/// after rendering through `SnapshotLimits::validate_rendered`.
 ///
 /// # Errors
 ///
 /// Returns an error for invalid roots, traversal/read failures, invalid UTF-8,
-/// exceeded budgets, or a suspected secret.
+/// exceeded source lower bounds, or a suspected secret.
 pub fn collect_project_with_options_and_limits(
     root: &Path,
     options: &SelectionOptions,
     limits: &SnapshotLimits,
+) -> io::Result<Snapshot> {
+    collect_with_contents(root, options, limits, true)
+}
+
+/// Collect selected paths without reading source contents, for tree-only output.
+///
+/// This allows a small tree report from a project containing very large source
+/// files. Content-based credential detection is unnecessary when no source
+/// bytes are exported.
+///
+/// # Errors
+///
+/// Returns an error on invalid directories or failed traversal.
+pub fn collect_project_tree(root: &Path, options: &SelectionOptions) -> io::Result<Snapshot> {
+    collect_with_contents(root, options, &SnapshotLimits::default(), false)
+}
+
+fn collect_with_contents(
+    root: &Path,
+    options: &SelectionOptions,
+    limits: &SnapshotLimits,
+    include_contents: bool,
 ) -> io::Result<Snapshot> {
     if !root.is_dir() {
         return Err(io::Error::new(
@@ -100,17 +121,22 @@ pub fn collect_project_with_options_and_limits(
         }
 
         let path = entry.path();
-        let remaining = limits
-            .permitted_source_bytes()
-            .saturating_sub(total_source_bytes);
-        let content = read_bounded_source(path, remaining)?;
-        if let Some(kind) = detect_secret(&content) {
-            return Err(io::Error::new(
-                io::ErrorKind::PermissionDenied,
-                format!("{} detected in {}", kind.description(), path.display()),
-            ));
-        }
-        total_source_bytes += content.len();
+        let content = if include_contents {
+            let remaining = limits
+                .permitted_source_bytes()
+                .saturating_sub(total_source_bytes);
+            let content = read_bounded_source(path, remaining)?;
+            if let Some(kind) = detect_secret(&content) {
+                return Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    format!("{} detected in {}", kind.description(), path.display()),
+                ));
+            }
+            total_source_bytes += content.len();
+            content
+        } else {
+            String::new()
+        };
         let relative_path = path
             .strip_prefix(root)
             .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?
@@ -145,8 +171,8 @@ fn is_included_entry(entry: &DirEntry, options: &SelectionOptions) -> bool {
     !kind.is_dir() || filter::includes_directory(entry.file_name(), options)
 }
 
-/// Read at most `remaining` UTF-8 source bytes, testing one extra byte to
-/// reject oversized input before allocating or printing a partial snapshot.
+/// Read at most `remaining` bytes to avoid allocations when the eventual
+/// rendered context could never fit the configured ceiling.
 fn read_bounded_source(path: &Path, remaining: usize) -> io::Result<String> {
     let file = File::open(path).map_err(|error| {
         io::Error::new(
@@ -168,7 +194,7 @@ fn read_bounded_source(path: &Path, remaining: usize) -> io::Result<String> {
         return Err(io::Error::new(
             io::ErrorKind::FileTooLarge,
             format!(
-                "source-byte or estimated-token limit exceeded at {}",
+                "rendered context cannot fit output limit: selected source at {}",
                 path.display()
             ),
         ));

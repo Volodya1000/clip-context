@@ -1,8 +1,8 @@
 //! Project snapshot data types and the public collection API.
 //!
 //! The collector reads common UTF-8 files, respects nested `.gitignore`, and
-//! supports named selection profiles. High-confidence credential detection and source-byte
-//! budgets are applied before producing a snapshot.
+//! supports named selection profiles. Credential checks run while collecting;
+//! complete rendered-context budgets are enforced before emitting output.
 
 mod collector;
 mod filter;
@@ -14,7 +14,8 @@ mod tree;
 use std::path::{Path, PathBuf};
 
 pub use collector::{
-    collect_project, collect_project_with_options, collect_project_with_options_and_limits,
+    collect_project, collect_project_tree, collect_project_with_options,
+    collect_project_with_options_and_limits,
 };
 pub use filter::SelectionOptions;
 pub use markdown::ContextFormat;
