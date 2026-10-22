@@ -12,7 +12,7 @@ if [ "$(uname -s)" != Linux ] || [ "$(uname -m)" != x86_64 ]; then
     echo "Only Linux x86_64 is supported by this installer." >&2
     exit 2
 fi
-for command in curl tar sha256sum grep install; do
+for command in curl tar sha256sum grep awk install; do
     command -v "$command" >/dev/null 2>&1 || {
         echo "Required command not found: $command" >&2
         exit 2
@@ -40,7 +40,7 @@ else
 fi
 (
     cd "$WORKDIR"
-    grep "  $ASSET\$" SHA256SUMS.txt > selected.sha256
+    awk -v name="$ASSET" '$2 == name || $2 == "./" name' SHA256SUMS.txt > selected.sha256
     test "$(wc -l < selected.sha256)" -eq 1 || {
         echo "Missing or duplicated release checksum" >&2
         exit 1
