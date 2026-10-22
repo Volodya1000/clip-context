@@ -54,16 +54,43 @@ fn help_is_a_complete_bounded_terminal_reference() {
         assert!(reference.contains(heading), "missing heading: {heading}");
     }
     for option in [
-        "-s", "--stdout", "-t", "--tree", "-c", "--clipboard", "-h", "--help",
-        "-V", "--version", "--format", "--ext", "--exclude-dir", "--profile",
-        "--config", "--ssh", "--max-bytes", "--max-estimated-tokens",
+        "-s",
+        "--stdout",
+        "-t",
+        "--tree",
+        "-c",
+        "--clipboard",
+        "-h",
+        "--help",
+        "-V",
+        "--version",
+        "--format",
+        "--ext",
+        "--exclude-dir",
+        "--profile",
+        "--config",
+        "--ssh",
+        "--max-bytes",
+        "--max-estimated-tokens",
     ] {
         assert!(reference.contains(option), "missing option: {option}");
     }
     for detail in [
-        "262144", "32000", ".gitignore", "stderr", "stdout", "16 MiB",
-        "extensions = ", "exclude_directories = ", "repeatable", "remote",
-        "cpctx -c", "cpctx -s", "cpctx -t", "replaces", "adds exclusions",
+        "262144",
+        "32000",
+        ".gitignore",
+        "stderr",
+        "stdout",
+        "16 MiB",
+        "extensions = ",
+        "exclude_directories = ",
+        "repeatable",
+        "remote",
+        "cpctx -c",
+        "cpctx -s",
+        "cpctx -t",
+        "replaces",
+        "adds exclusions",
     ] {
         assert!(reference.contains(detail), "missing help detail: {detail}");
     }
@@ -83,12 +110,18 @@ fn invalid_cli_arguments_have_actionable_diagnostics_and_no_stdout() {
         (&["--profile", "../bad"], "--profile requires"),
         (&["--profile", "ok", "--profile", "ok"], "--profile may"),
         (&["--config", ""], "--config requires"),
-        (&["--profile", "ok", "--config", "a", "--config", "b"], "--config may"),
+        (
+            &["--profile", "ok", "--config", "a", "--config", "b"],
+            "--config may",
+        ),
         (&["--ssh", ""], "--ssh requires"),
         (&["--ssh", "host", "--ssh", "other"], "--ssh may"),
         (&["--format", "unknown"], "--format must"),
         (&["--max-bytes", "0"], "--max-bytes must"),
-        (&["--max-estimated-tokens", "0"], "--max-estimated-tokens must"),
+        (
+            &["--max-estimated-tokens", "0"],
+            "--max-estimated-tokens must",
+        ),
         (&["--unknown", "value"], "Unknown option"),
         (&["--config", "file.toml"], "--config requires --profile"),
         (&["--ext"], "Missing value for --ext"),
@@ -99,7 +132,10 @@ fn invalid_cli_arguments_have_actionable_diagnostics_and_no_stdout() {
         assert!(output.stdout.is_empty(), "arguments: {arguments:?}");
         let error = String::from_utf8(output.stderr).expect("diagnostic must be UTF-8");
         assert!(error.contains(diagnostic), "unexpected diagnostic: {error}");
-        assert!(error.contains("Run cpctx --help."), "missing help hint: {error}");
+        assert!(
+            error.contains("Run cpctx --help."),
+            "missing help hint: {error}"
+        );
         assert!(!error.contains("never print this"));
     }
 }

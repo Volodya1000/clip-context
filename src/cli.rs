@@ -104,7 +104,9 @@ fn parse_selection(flags: &[OsString]) -> Result<SelectionArguments, String> {
             }
             "--exclude-dir" => {
                 if !SelectionOptions::valid_directory_name(value) {
-                    return Err("--exclude-dir requires a single directory name, not a path.".into());
+                    return Err(
+                        "--exclude-dir requires a single directory name, not a path.".into(),
+                    );
                 }
                 arguments.excluded_directories.push(value.to_owned());
             }
@@ -117,7 +119,9 @@ fn parse_selection(flags: &[OsString]) -> Result<SelectionArguments, String> {
                         character.is_ascii_alphanumeric() || matches!(character, b'-' | b'_')
                     })
                 {
-                    return Err("--profile requires a name using letters, digits, '-' or '_'.".into());
+                    return Err(
+                        "--profile requires a name using letters, digits, '-' or '_'.".into(),
+                    );
                 }
                 arguments.profile = Some(value.to_owned());
             }
