@@ -53,4 +53,8 @@ impl Snapshot {
     pub fn files(&self) -> &[SourceFile] {
         &self.files
     }
+
+    pub(crate) fn set_project_name(&mut self, name: String) {
+        self.project_name = name;
+    }
 }

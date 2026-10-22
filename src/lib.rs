@@ -8,6 +8,7 @@
 //! ```
 
 pub mod profile;
+pub mod remote;
 pub mod snapshot;
 
 /// Stable executable and package name.

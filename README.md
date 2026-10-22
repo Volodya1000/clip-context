@@ -2,7 +2,7 @@
 
 A local-first Rust CLI for collecting source files and a filtered directory tree into a reproducible text snapshot.
 
-**Current stage:** project snapshots, file selection, nested `.gitignore`, TOML profiles, stdout and clipboard output. Exhaustive secret detection, model-specific tokenization and SSH are **not yet implemented**.
+**Current stage:** project snapshots, file selection, nested `.gitignore`, TOML profiles, stdout and clipboard output. Exhaustive secret detection, model-specific tokenization and exact output budgets are **not yet implemented**.
 
 ## Example
 
@@ -80,6 +80,27 @@ cpctx --clipboard . --profile backend
 
 For all modes, selected files must first pass `.gitignore`, configuration, credential screening and source limits. A failure during collection does **not** alter the clipboard; failure to invoke a clipboard backend produces nonzero exit status and **no source content on stdout**. A clipboard service might modify its state before reporting failure, so this guarantee applies to pre-copy validation only.
 
+## Remote projects over SSH
+
+Install `cpctx` **only on the local computer**. The remote machine needs a POSIX-compatible shell, `tar`, and an SSH server (plus read access to the requested directory).
+
+```sh
+cpctx -s /srv/myapp --ssh admin@dev-host
+cpctx -t /srv/myapp --ssh admin@dev-host
+cpctx -c /srv/myapp --ssh admin@dev-host
+cpctx -c '/home/dev/my project' --ssh dev-host --profile backend
+```
+
+The path passed after `-s`, `-t` or `-c` is **remote** when `--ssh` is present. `--ssh` accepts an SSH config alias or `user@host`; SSH authentication and host-key checking use your existing `ssh` configuration. Clipboard output is always local.
+
+Remote tar travels over the encrypted SSH connection; the CLI restricts the **raw transfer to 16 MiB** and extracts it in a temporary directory. Archive paths are validated: entries cannot escape the directory, archive symlinks and devices are never materialized, and duplicate file entries cannot overwrite. After extraction, existing `.gitignore` rules, selection profiles, byte/token budgets, and secret checks run locally before any output or clipboard change.
+
+**Limitations:** `tar` initially packages the remote directory before local filtering, so large directories (especially containing `node_modules` or binary media) can hit the 16 MiB transfer limit even if most of their files would be ignored later. Remote files are temporarily materialized locally and removed when the operation ends. The server must have the `tar` command and a POSIX-compatible shell; Windows SSH servers and projects exceeding the raw archive cap are not yet supported.
+
+### Security considerations
+
+Only connect to SSH servers you trust and retain normal SSH host-key verification. Remote archive contents are treated as untrusted input; dangerous paths are rejected. Local credential detection covers known signatures but cannot guarantee that no secret is present.
+
 ## Quality gates
 
 CI runs rustfmt, strict Clippy (`all`, `pedantic`, `nursery`, `cargo`), tests on Windows/Linux, rustdoc, MSRV compilation, **90% minimum line coverage**, cargo-deny, TOML/YAML hygiene, workflow linters, Conventional Commits verification through Cocogitto, changelog checks, and secret scanning.
@@ -94,7 +115,8 @@ Every PR must follow Conventional Commits naming and change `CHANGELOG.md`. See 
 4. Named TOML selection profiles (this PR).
 5. Selected credential signatures and bounded source budgets (this PR).
 6. OS clipboard output on Windows/Linux (this PR); improved detection and final-output limits remain future work.
-7. SSH remote collection and packaging.
+7. SSH remote collection without installing cpctx on servers (this PR).
+8. Improved server-side prefiltering and packaging for larger repositories (planned).
 
 ## License
 
