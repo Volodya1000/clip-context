@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Every pull request must
 
 ### Added
 
+- Support SSH collection from POSIX servers without installing cpctx remotely, using bounded tar archives and local filtering, safety checks and clipboard output.
+
 - Add `cpctx -c PATH` / `--clipboard PATH` to copy a validated Markdown snapshot using Windows PowerShell or native Linux clipboard utilities, without printing source text.
 
 - Block snapshots containing recognized credentials, and enforce bounded source-byte and estimated-token budgets before output.

@@ -1,0 +1,21 @@
+name: Generate Rust SSH lockfile
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec  # stable
+      - run: cargo generate-lockfile
+      - name: Display generated Cargo.lock
+        run: |
+          echo BEGIN_CPCTX_REMOTE_LOCK
+          base64 -w 0 Cargo.lock
+          echo
+          echo END_CPCTX_REMOTE_LOCK
