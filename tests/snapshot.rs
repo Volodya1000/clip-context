@@ -344,3 +344,51 @@ fn custom_directory_exclusions_cannot_be_undone_by_gitignore_negation() {
     assert_eq!(snapshot.files().len(), 1);
     assert_eq!(snapshot.files()[0].content(), "included");
 }
+
+#[test]
+fn named_profile_can_be_used_through_library_api() {
+    use clip_context::profile::load_profile;
+
+    let fixture = Fixture::new();
+    fixture.file(
+        "selection.toml",
+        "[profiles.source]\nextensions = ['RS']\nexclude_directories = ['generated']\n",
+    );
+    fixture.file("src/lib.rs", "included");
+    fixture.file("src/other.py", "other");
+    fixture.file("generated/lib.rs", "generated");
+
+    let options = load_profile(&fixture.path().join("selection.toml"), "source")
+        .expect("named profile should deserialize");
+    let snapshot = collect_project_with_options(fixture.path(), &options)
+        .expect("profile should collect files");
+
+    assert_eq!(snapshot.files().len(), 1);
+    assert_eq!(snapshot.files()[0].content(), "included");
+}
+
+#[test]
+fn unknown_profile_name_has_explicit_invalid_input_error() {
+    use clip_context::profile::load_profile;
+
+    let fixture = Fixture::new();
+    fixture.file("selection.toml", "[profiles.source]\nextensions = ['rs']\n");
+    let error = load_profile(&fixture.path().join("selection.toml"), "missing")
+        .expect_err("unknown names must be rejected");
+    assert_eq!(error.kind(), ErrorKind::InvalidInput);
+}
+
+#[test]
+fn configuration_errors_are_not_silently_recovered() {
+    use clip_context::profile::load_profile;
+
+    let fixture = Fixture::new();
+    fixture.file("selection.toml", "[profiles.source]\nexclude_directories = [4]\n");
+    let error = load_profile(&fixture.path().join("selection.toml"), "source")
+        .expect_err("invalid type must fail");
+    assert_eq!(error.kind(), ErrorKind::InvalidData);
+
+    let missing = load_profile(&fixture.path().join("missing.toml"), "source")
+        .expect_err("missing file must fail");
+    assert_eq!(missing.kind(), ErrorKind::NotFound);
+}

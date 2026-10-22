@@ -234,3 +234,145 @@ fn invalid_selection_flags_produce_no_snapshot_output() {
         assert_ne!(output.stderr, Vec::<u8>::new());
     }
 }
+
+#[test]
+fn named_profile_selects_matching_files_and_excludes_directories() {
+    let fixture = Fixture::new();
+    fixture.file(
+        ".cpctx.toml",
+        "[profiles.backend]\nextensions = ['rs']\nexclude_directories = ['generated']\n",
+    );
+    fixture.file("src/main.rs", "included-rust");
+    fixture.file("src/helper.py", "excluded-python");
+    fixture.file("generated/model.rs", "excluded-generated");
+
+    let output = execute_with_flags(&fixture, &["--profile", "backend"]);
+    assert!(output.status.success());
+    let body = String::from_utf8(output.stdout).expect("snapshot must be UTF-8");
+    assert!(body.contains("included-rust"));
+    assert!(!body.contains("excluded-python"));
+    assert!(!body.contains("excluded-generated"));
+}
+
+#[test]
+fn cli_extensions_override_profile_while_directory_exclusions_accumulate() {
+    let fixture = Fixture::new();
+    fixture.file(
+        ".cpctx.toml",
+        "[profiles.backend]\nextensions = ['rs']\nexclude_directories = ['generated']\n",
+    );
+    fixture.file(".gitignore", "private/\n");
+    fixture.file("src/main.rs", "excluded-rust");
+    fixture.file("src/lib.py", "included-python");
+    fixture.file("generated/lib.py", "excluded-profile");
+    fixture.file("drafts/lib.py", "excluded-cli");
+    fixture.file("private/lib.py", "excluded-gitignore");
+
+    let output = execute_with_flags(
+        &fixture,
+        &[
+            "--profile",
+            "backend",
+            "--ext",
+            "py",
+            "--exclude-dir",
+            "drafts",
+        ],
+    );
+    assert!(output.status.success());
+    let body = String::from_utf8(output.stdout).expect("snapshot must be UTF-8");
+    assert!(body.contains("included-python"));
+    for excluded in [
+        "excluded-rust",
+        "excluded-profile",
+        "excluded-cli",
+        "excluded-gitignore",
+    ] {
+        assert!(!body.contains(excluded));
+    }
+}
+
+#[test]
+fn explicit_config_is_resolved_against_the_project_directory() {
+    let fixture = Fixture::new();
+    fixture.file(
+        "config/profiles.toml",
+        "[profiles.docs]\nextensions = ['md']\n",
+    );
+    fixture.file("README.md", "documentation");
+    fixture.file("src/lib.rs", "implementation");
+
+    let output = execute_with_flags(
+        &fixture,
+        &["--profile", "docs", "--config", "config/profiles.toml"],
+    );
+    assert!(output.status.success());
+    let body = String::from_utf8(output.stdout).expect("snapshot must be UTF-8");
+    assert!(body.contains("documentation"));
+    assert!(!body.contains("implementation"));
+}
+
+#[test]
+fn invalid_or_missing_profile_is_rejected_before_output() {
+    let fixture = Fixture::new();
+    fixture.file(".cpctx.toml", "[profiles.docs]\nextensions = ['md']\n");
+    fixture.file("README.md", "should-not-be-emitted");
+
+    let invalid_sets: &[&[&str]] = &[
+        &["--profile", "missing"],
+        &["--profile", "docs", "--profile", "docs"],
+        &["--profile", "docs", "--config", "missing.toml"],
+        &["--config", ".cpctx.toml"],
+        &["--profile", "../outside"],
+        &["--profile"],
+    ];
+    for arguments in invalid_sets {
+        let output = execute_with_flags(&fixture, arguments);
+        assert!(!output.status.success());
+        assert_eq!(output.stdout, Vec::<u8>::new());
+        assert_ne!(output.stderr, Vec::<u8>::new());
+    }
+}
+
+#[test]
+fn malformed_and_unsafe_profile_documents_are_rejected_without_output() {
+    let fixture = Fixture::new();
+    fixture.file("src/main.rs", "not-for-output");
+    let bad_documents = [
+        "[profiles.backend]\nextensions = 'rs'\n",
+        "[profiles.backend]\nextensions = ['rs']\nunknown = true\n",
+        "[profiles.backend]\nextensions = ['../rs']\n",
+        "[profiles.backend]\nexclude_directories = ['../outside']\n",
+        "[profiles.backend]\nexclude_directories = ['.']\n",
+        "[profiles.backend\n",
+    ];
+
+    for document in bad_documents {
+        fixture.file(".cpctx.toml", document);
+        let output = execute_with_flags(&fixture, &["--profile", "backend"]);
+        assert!(!output.status.success());
+        assert_eq!(output.stdout, Vec::<u8>::new());
+        assert_ne!(output.stderr, Vec::<u8>::new());
+    }
+}
+
+#[test]
+fn profile_configuration_is_opt_in() {
+    let fixture = Fixture::new();
+    fixture.file(".cpctx.toml", "this is not TOML");
+    fixture.file("src/main.rs", "included-default");
+
+    let output = execute_on_project("-s", &fixture);
+    assert!(output.status.success());
+    let body = String::from_utf8(output.stdout).expect("snapshot must be UTF-8");
+    assert!(body.contains("included-default"));
+}
+
+fn execute_with_flags(fixture: &Fixture, flags: &[&str]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_cpctx"))
+        .arg("-s")
+        .arg(fixture.path())
+        .args(flags)
+        .output()
+        .expect("CLI executable must be runnable")
+}

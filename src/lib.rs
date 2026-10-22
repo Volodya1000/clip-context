@@ -7,6 +7,7 @@
 //! assert_eq!(clip_context::APPLICATION_NAME, "clip-context");
 //! ```
 
+pub mod profile;
 pub mod snapshot;
 
 /// Stable executable and package name.

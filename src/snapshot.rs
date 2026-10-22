@@ -1,7 +1,8 @@
 //! Project snapshot data types and the public collection API.
 //!
-//! The collector currently reads common UTF-8 files. Custom excludes,
-//! `.gitignore` support, and secret detection will be added separately.
+//! The collector reads common UTF-8 files, respects nested `.gitignore`, and
+//! supports named selection profiles. Content-based secret scanning remains
+//! a separate security feature.
 
 mod collector;
 mod filter;

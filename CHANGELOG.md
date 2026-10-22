@@ -6,8 +6,6 @@ All notable changes to this project are documented here. Every pull request must
 
 ### Added
 
-- Named TOML selection profiles with strict validation and composable CLI overrides.
-
 - Respect project-root and nested `.gitignore` patterns, including negations, without reading ignore files outside the chosen root.
 
 - Allow repeated `--ext EXT` and `--exclude-dir NAME` flags for project selection, with library support and integration tests.

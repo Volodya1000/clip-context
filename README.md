@@ -2,7 +2,7 @@
 
 A local-first Rust CLI for collecting source files and a filtered directory tree into a reproducible text snapshot.
 
-**Current stage:** project snapshots, file selection, nested `.gitignore`, and stdout. Native clipboard integration, configurable profiles, secret detection and SSH are **not yet implemented**.
+**Current stage:** project snapshots, file selection, nested `.gitignore`, TOML profiles and stdout. Native clipboard integration, content-based secret detection and SSH are **not yet implemented**.
 
 ## Example
 
@@ -14,6 +14,8 @@ cpctx -t .
 cpctx -s .
 cpctx -s . --ext rs --ext toml
 cpctx -s . --exclude-dir generated
+cpctx -s . --profile backend
+cpctx -s . --profile backend --ext py
 cargo test --locked --all-targets --all-features
 ```
 
@@ -23,6 +25,31 @@ cargo test --locked --all-targets --all-features
 - `--exclude-dir NAME` can be repeated to exclude directories by name at every depth, in addition to built-in exclusions.
 
 Root and nested `.gitignore` files determine which files are included. Negated patterns (`!file`) work, including outside Git repositories. Ignore files from parent directories, global Git settings and `.git/info/exclude` are deliberately not read, so results only depend on the chosen root. CLI exclusions, hidden-file rules, and built-in generated-directory exclusions always take precedence over an unignore rule.
+
+## Named selection profiles
+
+Profiles are loaded **only** when `--profile NAME` is provided. Create `.cpctx.toml` in the project directory:
+
+```toml
+[profiles.backend]
+extensions = ["rs", "toml"]
+exclude_directories = ["generated"]
+
+[profiles.docs]
+extensions = ["md"]
+exclude_directories = ["drafts"]
+```
+
+```sh
+cpctx -s . --profile backend
+cpctx -t . --profile docs
+cpctx -s . --profile backend --ext py --exclude-dir temporary
+cpctx -s . --profile docs --config settings/profiles.toml
+```
+
+The profile defines initial extensions and directory exclusions. Explicit `--ext` parameters **replace** profile extensions, while `--exclude-dir` **adds** excluded directories. Hidden-file rules, built-in exclusions, and all `.gitignore` rules always apply. Unknown profile keys and invalid values cause an error without printing any file content.
+
+An explicit `--config FILE` path is resolved relative to the chosen project directory unless absolute; it requires `--profile`. The hidden default `.cpctx.toml` is never included in snapshots.
 
 Both commands require a project directory. They do not modify any files or clipboard contents. All source files are read before output is printed, so a read or UTF-8 error does not produce a partial snapshot.
 
@@ -41,7 +68,7 @@ Every PR must follow Conventional Commits naming and change `CHANGELOG.md`. See 
 1. Deterministic project snapshots and plain output (implemented).
 2. Additional directory and extension selection via CLI (implemented).
 3. Root and nested `.gitignore` rules (this PR).
-4. User TOML profiles.
+4. Named TOML selection profiles (this PR).
 5. Content-based secret detection and safe output limits.
 6. Native Windows/Linux clipboard.
 7. SSH remote collection and packaging.
