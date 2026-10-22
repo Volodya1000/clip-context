@@ -46,6 +46,17 @@ cat > "$temporary/tools/ssh" <<EOF
 exec /usr/bin/ssh -F '$temporary/client.config' "\$@"
 EOF
 chmod 755 "$temporary/tools/ssh"
+cat > "$temporary/posix/tar" <<'EOF'
+#!/bin/sh
+if [ "$1" = --help ]; then printf 'POSIX tar: -cf - -C DIR .\n'; exit 0; fi
+exec /bin/tar "$@"
+EOF
+cat > "$temporary/server-command" <<EOF
+#!/bin/sh
+if [ -f '$temporary/use-posix-tar' ]; then PATH='$temporary/posix':\$PATH; export PATH; fi
+exec /bin/sh -c "\$SSH_ORIGINAL_COMMAND"
+EOF
+chmod 755 "$temporary/posix/tar" "$temporary/server-command"
 cat > "$temporary/server.config" <<EOF
 ListenAddress 127.0.0.1
 Port $port
@@ -58,6 +69,7 @@ KbdInteractiveAuthentication no
 UsePAM no
 AllowUsers $(id -un)
 LogLevel ERROR
+ForceCommand $temporary/server-command
 EOF
 "${sshd[@]}" -D -e -f "$temporary/server.config" > "$temporary/sshd.log" 2>&1 &
 server_pid=$!
@@ -77,6 +89,18 @@ PATH="$temporary/tools:$PATH" "$binary" -s "$project" --ssh cpctx-acceptance \
   --profile rust --format compact > "$temporary/remote" 2> "$temporary/error"
 cmp "$temporary/local" "$temporary/remote"
 printf 'PASS real SSH generated-directory prefilter with >16 MiB dependency\n'
+touch "$temporary/use-posix-tar"
+if PATH="$temporary/tools:$PATH" "$binary" -s "$project" --ssh cpctx-acceptance \
+  > "$temporary/rejected" 2>/dev/null; then
+  echo 'Unfiltered oversized POSIX tar unexpectedly succeeded' >&2
+  exit 1
+fi
+test ! -s "$temporary/rejected"
+rm "$project/node_modules/package/large.js"
+PATH="$temporary/tools:$PATH" "$binary" -s "$project" --ssh cpctx-acceptance \
+  --profile rust --format compact > "$temporary/remote" 2> "$temporary/error"
+cmp "$temporary/local" "$temporary/remote"
+printf 'PASS real SSH transport with POSIX-option tar shim and bounded fallback\n'
 if PATH="$temporary/tools:$PATH" "$binary" -s "$project/missing" --ssh cpctx-acceptance \
   > "$temporary/rejected" 2>/dev/null; then
   echo 'Missing remote directory unexpectedly succeeded' >&2

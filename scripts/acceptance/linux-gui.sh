@@ -6,6 +6,10 @@ temporary="$(mktemp -d)"
 x11_pid=''
 wayland_pid=''
 cleanup() {
+  status=$?
+  if [ "$status" -ne 0 ]; then
+    cat "$temporary/wayland.log" "$temporary/error" 2>/dev/null || true
+  fi
   if [ -n "$x11_pid" ]; then kill "$x11_pid" 2>/dev/null || true; fi
   if [ -n "$wayland_pid" ]; then kill "$wayland_pid" 2>/dev/null || true; fi
   rm -rf "$temporary"
@@ -29,17 +33,30 @@ test ! -s "$temporary/stdout"
 xclip -selection clipboard -o > "$temporary/actual"
 cmp "$temporary/expected" "$temporary/actual"
 printf 'PASS real X11 clipboard persists after cpctx exit\n'
+# Keep only xsel discoverable to exercise the real fallback backend.
+mkdir "$temporary/xsel-only"
+ln -s "$(command -v xsel)" "$temporary/xsel-only/xsel"
+PATH="$temporary/xsel-only" "$binary" -c "$temporary/project" > "$temporary/stdout" 2> "$temporary/error"
+test ! -s "$temporary/stdout"
+xsel --clipboard --output > "$temporary/actual"
+cmp "$temporary/expected" "$temporary/actual"
+printf 'PASS real xsel fallback clipboard\n'
 export XDG_RUNTIME_DIR="$temporary/runtime"
-export WAYLAND_DISPLAY=cpctx-acceptance
-weston --backend=headless-backend.so --socket="$WAYLAND_DISPLAY" --idle-time=0 \
+printf 'seat seat0 fallback true\noutput HEADLESS-1 resolution 800x600\n' > "$temporary/sway.config"
+WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_LIBINPUT_NO_DEVICES=1 \
+  sway --config "$temporary/sway.config" \
   > "$temporary/wayland.log" 2>&1 &
 wayland_pid=$!
 for _ in {1..100}; do
-  if [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]; then break; fi
+  for socket in "$XDG_RUNTIME_DIR"/wayland-*; do
+    if [ -S "$socket" ]; then export WAYLAND_DISPLAY="${socket##*/}"; break; fi
+  done
+  if [ -n "${WAYLAND_DISPLAY:-}" ]; then break; fi
   sleep 0.1
 done
+test -n "${WAYLAND_DISPLAY:-}"
 test -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
-"$binary" -c "$temporary/project" > "$temporary/stdout" 2>/dev/null
+"$binary" -c "$temporary/project" > "$temporary/stdout" 2> "$temporary/error"
 test ! -s "$temporary/stdout"
 wl-paste --no-newline > "$temporary/actual"
 cmp "$temporary/expected" "$temporary/actual"
