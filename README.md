@@ -2,7 +2,7 @@
 
 A local-first Rust CLI for collecting source files and a filtered directory tree into a reproducible text snapshot.
 
-**Current stage:** project snapshots, file selection, nested `.gitignore`, TOML profiles and stdout. Native clipboard integration, content-based secret detection and SSH are **not yet implemented**.
+**Current stage:** project snapshots, file selection, nested `.gitignore`, TOML profiles and stdout. Native clipboard integration, exhaustive secret detection, model-specific tokenization and SSH are **not yet implemented**.
 
 ## Example
 
@@ -16,6 +16,7 @@ cpctx -s . --ext rs --ext toml
 cpctx -s . --exclude-dir generated
 cpctx -s . --profile backend
 cpctx -s . --profile backend --ext py
+cpctx -s . --max-bytes 50000 --max-estimated-tokens 10000
 cargo test --locked --all-targets --all-features
 ```
 
@@ -57,6 +58,14 @@ By default, only common source-file extensions are collected. Hidden files/direc
 
 **Security limitation:** neither `.gitignore` nor extension filtering finds secrets embedded in source files. Do not send snapshots of confidential or untrusted repositories to external services.
 
+## Safety defaults and output budgets
+
+Before producing **any stdout**, the collector rejects selected files with common private-key headers, selected credential token signatures (including GitHub, AWS, OpenAI, GitLab and Stripe) and obvious long inline credential assignments. The tool never includes detected secret values in error messages. Hidden paths and ignored files remain excluded before scanning.
+
+The defaults are **262,144 source bytes** and **32,000 estimated tokens**, whichever limit is reached first. Token estimates use `ceil(source_bytes / 4)` and are **not** exact LLM token counts. Markdown delimiters, paths and the directory tree are outside these source budgets. Use `--max-bytes N` and `--max-estimated-tokens N` with strictly positive integers to tune them. Every included file is read with a bounded reader to avoid loading an unexpectedly large file. If the budget is exceeded, nothing is printed.
+
+**Security limitation:** these are targeted, high-confidence detections, not a full substitute for specialized scanners (for example, Gitleaks), code review, or a model-specific tokenizer. An unknown credential format can still be leaked by a snapshot. **Do not send confidential code to external services** based only on this screening.
+
 ## Quality gates
 
 CI runs rustfmt, strict Clippy (`all`, `pedantic`, `nursery`, `cargo`), tests on Windows/Linux, rustdoc, MSRV compilation, **90% minimum line coverage**, cargo-deny, TOML/YAML hygiene, workflow linters, Conventional Commits verification through Cocogitto, changelog checks, and secret scanning.
@@ -69,8 +78,8 @@ Every PR must follow Conventional Commits naming and change `CHANGELOG.md`. See 
 2. Additional directory and extension selection via CLI (implemented).
 3. Root and nested `.gitignore` rules (this PR).
 4. Named TOML selection profiles (this PR).
-5. Content-based secret detection and safe output limits.
-6. Native Windows/Linux clipboard.
+5. Selected credential signatures and bounded source budgets (this PR).
+6. Broader secret rules and exact-output limits, followed by native Windows/Linux clipboard.
 7. SSH remote collection and packaging.
 
 ## License

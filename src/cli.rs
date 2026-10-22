@@ -2,11 +2,14 @@
 
 use std::ffi::{OsStr, OsString};
 use std::io;
+use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clip_context::profile::{DEFAULT_CONFIG_FILE, load_profile};
-use clip_context::snapshot::{SelectionOptions, collect_project_with_options};
+use clip_context::snapshot::{
+    SelectionOptions, SnapshotLimits, collect_project_with_options_and_limits,
+};
 
 #[derive(Default)]
 struct SelectionArguments {
@@ -14,6 +17,7 @@ struct SelectionArguments {
     config_file: Option<PathBuf>,
     extensions: Vec<String>,
     excluded_directories: Vec<String>,
+    limits: SnapshotLimits,
 }
 
 pub fn run_snapshot(mode: &OsStr, path: &OsStr, flags: &[OsString]) -> ExitCode {
@@ -34,7 +38,7 @@ pub fn run_snapshot(mode: &OsStr, path: &OsStr, flags: &[OsString]) -> ExitCode 
         }
     };
 
-    match collect_project_with_options(root, &options) {
+    match collect_project_with_options_and_limits(root, &options, &arguments.limits) {
         Ok(snapshot) => {
             if mode == "--tree" || mode == "-t" {
                 print!("{}", snapshot.tree());
@@ -76,6 +80,18 @@ fn parse_selection(flags: &[OsString]) -> Result<SelectionArguments, &'static st
             }
             "--config" if arguments.config_file.is_none() && !value.is_empty() => {
                 arguments.config_file = Some(PathBuf::from(value));
+            }
+            "--max-bytes" => {
+                let limit: NonZeroUsize = value
+                    .parse()
+                    .map_err(|_error| "--max-bytes must be a positive integer.")?;
+                arguments.limits.set_max_source_bytes(limit);
+            }
+            "--max-estimated-tokens" => {
+                let limit: NonZeroUsize = value
+                    .parse()
+                    .map_err(|_error| "--max-estimated-tokens must be a positive integer.")?;
+                arguments.limits.set_max_estimated_tokens(limit);
             }
             _ => return Err("Invalid file selection option."),
         }

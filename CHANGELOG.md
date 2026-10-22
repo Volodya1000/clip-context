@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Every pull request must
 
 ### Added
 
+- Block snapshots containing recognized credentials, and enforce bounded source-byte and estimated-token budgets before output.
+
 - Add strict named TOML selection profiles with `--profile` / `--config`, reusable validation, and CLI override precedence.
 
 - Respect project-root and nested `.gitignore` patterns, including negations, without reading ignore files outside the chosen root.

@@ -1,18 +1,23 @@
 //! Project snapshot data types and the public collection API.
 //!
 //! The collector reads common UTF-8 files, respects nested `.gitignore`, and
-//! supports named selection profiles. Content-based secret scanning remains
-//! a separate security feature.
+//! supports named selection profiles. High-confidence credential detection and source-byte
+//! budgets are applied before producing a snapshot.
 
 mod collector;
 mod filter;
 mod markdown;
+mod safety;
+mod secrets;
 mod tree;
 
 use std::path::{Path, PathBuf};
 
-pub use collector::{collect_project, collect_project_with_options};
+pub use collector::{
+    collect_project, collect_project_with_options, collect_project_with_options_and_limits,
+};
 pub use filter::SelectionOptions;
+pub use safety::{DEFAULT_MAX_ESTIMATED_TOKENS, DEFAULT_MAX_SOURCE_BYTES, SnapshotLimits};
 
 /// Source text together with its path relative to the project root.
 #[derive(Debug, Clone, PartialEq, Eq)]

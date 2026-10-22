@@ -376,3 +376,95 @@ fn execute_with_flags(fixture: &Fixture, flags: &[&str]) -> Output {
         .output()
         .expect("CLI executable must be runnable")
 }
+
+#[test]
+fn recognized_credentials_do_not_appear_in_stdout_or_stderr() {
+    let fixture = Fixture::new();
+    fixture.file("public.rs", "safe");
+    let token = format!("ghp_{}", "Q".repeat(36));
+    fixture.file("private.rs", &format!("token = \"{token}\""));
+
+    let output = execute_with_flags(&fixture, &[]);
+    assert!(!output.status.success());
+    assert_eq!(output.stdout, Vec::<u8>::new());
+    let errors = String::from_utf8(output.stderr).expect("error must be UTF-8");
+    assert!(!errors.contains(&token));
+    assert!(errors.contains("access token"));
+}
+
+#[test]
+fn tree_output_also_refuses_projects_containing_private_keys() {
+    let fixture = Fixture::new();
+    let private_key_label = ["PRIVATE", "KEY"].join(" ");
+    fixture.file(
+        "private.txt",
+        &format!("-----BEGIN {private_key_label}-----\n"),
+    );
+    let output = execute_on_project("-t", &fixture);
+    assert!(!output.status.success());
+    assert_eq!(output.stdout, Vec::<u8>::new());
+}
+
+#[test]
+fn explicit_byte_budget_prevents_output_when_project_is_oversized() {
+    let fixture = Fixture::new();
+    fixture.file("main.py", "more than three bytes");
+    let output = execute_with_flags(&fixture, &["--max-bytes", "3"]);
+    assert!(!output.status.success());
+    assert_eq!(output.stdout, Vec::<u8>::new());
+}
+
+#[test]
+fn estimated_token_budget_prevents_output_when_exceeded() {
+    let fixture = Fixture::new();
+    fixture.file("main.py", "123456789");
+    let output = execute_with_flags(&fixture, &["--max-estimated-tokens", "2"]);
+    assert!(!output.status.success());
+    assert_eq!(output.stdout, Vec::<u8>::new());
+}
+
+#[test]
+fn explicitly_raised_budgets_allow_an_ordinary_project() {
+    let fixture = Fixture::new();
+    fixture.file("main.py", "print('ready')");
+    let output = execute_with_flags(
+        &fixture,
+        &["--max-bytes", "200", "--max-estimated-tokens", "100"],
+    );
+    assert!(output.status.success());
+    assert!(
+        String::from_utf8(output.stdout)
+            .expect("stdout is UTF-8")
+            .contains("print('ready')")
+    );
+}
+
+#[test]
+fn invalid_budget_arguments_fail_before_emitting_any_content() {
+    let fixture = Fixture::new();
+    fixture.file("main.py", "safe");
+    for flags in [
+        vec!["--max-bytes", "0"],
+        vec!["--max-bytes", "not_a_number"],
+        vec!["--max-bytes"],
+        vec!["--max-estimated-tokens", "0"],
+        vec!["--max-estimated-tokens", "-1"],
+    ] {
+        let output = execute_with_flags(&fixture, &flags);
+        assert!(!output.status.success());
+        assert_eq!(output.stdout, Vec::<u8>::new());
+    }
+}
+
+#[test]
+fn secret_in_excluded_directory_does_not_block_export() {
+    let fixture = Fixture::new();
+    fixture.file("src/main.rs", "safe");
+    let synthetic_header = ["-----", "BEGIN ", "PRIVATE ", "KEY-----", "\n"].concat();
+    fixture.file("secrets/keys.rs", &synthetic_header);
+    let output = execute_with_flags(&fixture, &["--exclude-dir", "secrets"]);
+    assert!(output.status.success());
+    let body = String::from_utf8(output.stdout).expect("stdout is UTF-8");
+    assert!(body.contains("safe"));
+    assert!(!body.contains("keys.rs"));
+}
