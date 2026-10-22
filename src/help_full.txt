@@ -25,6 +25,13 @@ Output formats:
                          -t always writes the tree; --format does not change it.
 
 Selection:
+  --changed-since REV    Intersect selection with tracked paths changed between
+                         REV and the current local worktree (once).
+                         Includes committed, staged and unstaged changes.
+                         Deleted paths and untracked files are omitted.
+                         Existing profiles/globs/ignores/secret checks apply.
+                         Supports a project subdirectory and --explain.
+                         Requires Git/history locally; incompatible with --ssh.
   --include GLOB         Select matching project-relative paths (repeatable).
                          Replaces default extension selection; explicit --ext
                          or profile extensions further narrow matching files.

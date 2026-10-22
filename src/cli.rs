@@ -23,6 +23,7 @@ struct SelectionArguments {
     excluded_directories: Vec<String>,
     includes: Vec<String>,
     excludes: Vec<String>,
+    changed_since: Option<String>,
     limits: SnapshotLimits,
     ssh_destination: Option<String>,
     format: ContextFormat,
@@ -139,57 +140,15 @@ fn parse_selection(flags: &[OsString]) -> Result<SelectionArguments, String> {
         let flag: &str = pair[0].to_str().ok_or("Option names must be UTF-8.")?;
         let value: &str = pair[1].to_str().ok_or("Option values must be UTF-8.")?;
 
+        if parse_file_selection(&mut arguments, flag, value)? {
+            continue;
+        }
         match flag {
-            "--include" | "--exclude" => {
-                let mut validation = SelectionOptions::default();
-                validation
-                    .include_pattern(value)
-                    .map_err(|error| error.to_string())?;
-                if flag == "--include" {
-                    arguments.includes.push(value.to_owned());
-                } else {
-                    arguments.excludes.push(value.to_owned());
+            "--changed-since" => {
+                if arguments.changed_since.is_some() || value.is_empty() {
+                    return Err("--changed-since requires one nonempty revision, once.".into());
                 }
-            }
-            "--ext" => {
-                if !SelectionOptions::valid_extension(value) {
-                    return Err(
-                        "--ext requires letters and digits only, without a leading dot.".into(),
-                    );
-                }
-                arguments.extensions.push(value.to_owned());
-            }
-            "--exclude-dir" => {
-                if !SelectionOptions::valid_directory_name(value) {
-                    return Err(
-                        "--exclude-dir requires a single directory name, not a path.".into(),
-                    );
-                }
-                arguments.excluded_directories.push(value.to_owned());
-            }
-            "--profile" => {
-                if arguments.profile.is_some() {
-                    return Err("--profile may be specified only once.".into());
-                }
-                if value.is_empty()
-                    || !value.bytes().all(|character| {
-                        character.is_ascii_alphanumeric() || matches!(character, b'-' | b'_')
-                    })
-                {
-                    return Err(
-                        "--profile requires a name using letters, digits, '-' or '_'.".into(),
-                    );
-                }
-                arguments.profile = Some(value.to_owned());
-            }
-            "--config" => {
-                if arguments.config_file.is_some() {
-                    return Err("--config may be specified only once.".into());
-                }
-                if value.is_empty() {
-                    return Err("--config requires a nonempty file path.".into());
-                }
-                arguments.config_file = Some(PathBuf::from(value));
+                arguments.changed_since = Some(value.to_owned());
             }
             "--ssh" => {
                 if arguments.ssh_destination.is_some() {
@@ -229,11 +188,81 @@ fn parse_selection(flags: &[OsString]) -> Result<SelectionArguments, String> {
             missing_value.to_string_lossy()
         ));
     }
+    validate_arguments(&arguments)?;
+
+    Ok(arguments)
+}
+
+fn parse_file_selection(
+    arguments: &mut SelectionArguments,
+    flag: &str,
+    value: &str,
+) -> Result<bool, String> {
+    match flag {
+        "--include" | "--exclude" => {
+            let mut validation = SelectionOptions::default();
+            validation
+                .include_pattern(value)
+                .map_err(|error| error.to_string())?;
+            if flag == "--include" {
+                arguments.includes.push(value.to_owned());
+            } else {
+                arguments.excludes.push(value.to_owned());
+            }
+        }
+        "--ext" => {
+            if !SelectionOptions::valid_extension(value) {
+                return Err(
+                    "--ext requires letters and digits only, without a leading dot.".into(),
+                );
+            }
+            arguments.extensions.push(value.to_owned());
+        }
+        "--exclude-dir" => {
+            if !SelectionOptions::valid_directory_name(value) {
+                return Err("--exclude-dir requires a single directory name, not a path.".into());
+            }
+            arguments.excluded_directories.push(value.to_owned());
+        }
+        "--profile" => {
+            if arguments.profile.is_some() {
+                return Err("--profile may be specified only once.".into());
+            }
+            if value.is_empty()
+                || !value.bytes().all(|character| {
+                    character.is_ascii_alphanumeric() || matches!(character, b'-' | b'_')
+                })
+            {
+                return Err("--profile requires a name using letters, digits, '-' or '_'.".into());
+            }
+            arguments.profile = Some(value.to_owned());
+        }
+        "--config" => {
+            if arguments.config_file.is_some() {
+                return Err("--config may be specified only once.".into());
+            }
+            if value.is_empty() {
+                return Err("--config requires a nonempty file path.".into());
+            }
+            arguments.config_file = Some(PathBuf::from(value));
+        }
+        _ => return Ok(false),
+    }
+    Ok(true)
+}
+
+fn validate_arguments(arguments: &SelectionArguments) -> Result<(), String> {
     if arguments.config_file.is_some() && arguments.profile.is_none() {
         return Err("--config requires --profile.".into());
     }
+    if arguments.changed_since.is_some() && arguments.ssh_destination.is_some() {
+        return Err(
+            "--changed-since requires a local Git checkout; it cannot be combined with --ssh."
+                .into(),
+        );
+    }
 
-    Ok(arguments)
+    Ok(())
 }
 
 fn resolve_selection(root: &Path, args: &SelectionArguments) -> io::Result<SelectionOptions> {
@@ -262,6 +291,9 @@ fn resolve_selection(root: &Path, args: &SelectionArguments) -> io::Result<Selec
     }
     for pattern in &args.excludes {
         options.exclude_pattern(pattern)?;
+    }
+    if let Some(revision) = args.changed_since.as_deref() {
+        options.restrict_to_paths(clip_context::git::changed_paths(root, revision)?)?;
     }
 
     Ok(options)

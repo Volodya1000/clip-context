@@ -2,9 +2,10 @@
 //!
 //! Explicit path globs augment the selection model without overriding ignores.
 
+use std::collections::BTreeSet;
 use std::ffi::OsStr;
 use std::io;
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 
 use ignore::overrides::{Override, OverrideBuilder};
 
@@ -18,6 +19,7 @@ pub struct SelectionOptions {
     excluded_directories: Vec<String>,
     includes: Vec<String>,
     excludes: Vec<String>,
+    changed_paths: Option<BTreeSet<PathBuf>>,
 }
 
 impl SelectionOptions {
@@ -75,6 +77,31 @@ impl SelectionOptions {
         self.excludes.push(pattern.to_owned());
         Ok(())
     }
+
+    /// Intersect file selection with a set of safe project-relative paths.
+    /// An empty set selects no files. Existing ignores and exclusions still win.
+    ///
+    /// # Errors
+    /// Returns an error if a path is empty, absolute or contains parent traversal.
+    pub fn restrict_to_paths(
+        &mut self,
+        paths: impl IntoIterator<Item = PathBuf>,
+    ) -> io::Result<()> {
+        let paths: BTreeSet<_> = paths.into_iter().collect();
+        if paths.iter().any(|path| {
+            path.as_os_str().is_empty()
+                || path
+                    .components()
+                    .any(|part| !matches!(part, Component::Normal(_)))
+        }) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "selected paths must be relative without parent traversal",
+            ));
+        }
+        self.changed_paths = Some(paths);
+        Ok(())
+    }
 }
 
 fn validate_pattern(pattern: &str) -> io::Result<()> {
@@ -124,6 +151,15 @@ impl SelectionRules {
         relative: &Path,
         is_dir: bool,
     ) -> Option<&'static str> {
+        if !is_dir
+            && self
+                .options
+                .changed_paths
+                .as_ref()
+                .is_some_and(|paths| !paths.contains(relative))
+        {
+            return Some("unchanged tracked path or untracked file");
+        }
         let name = path.file_name()?;
         let name_text = name.to_string_lossy();
         if [

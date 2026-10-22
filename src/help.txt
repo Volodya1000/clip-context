@@ -12,6 +12,7 @@ Options:
   --exclude-dir NAME        Exclude directory by name; repeatable
   --include GLOB            Select paths, including extensionless files
   --exclude GLOB            Exclude matching paths; repeatable
+  --changed-since REV       Select changed existing tracked files (local Git)
   --profile NAME            Use named selection profile from .cpctx.toml
   --config FILE             Override profile file (requires --profile)
   --ssh HOST                Read a remote PATH through SSH

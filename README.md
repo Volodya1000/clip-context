@@ -77,6 +77,20 @@ Export limits are guidance in preview mode; diagnostics have separate 10,000-ent
 and 4 MiB bounds. Excluded directories are not traversed. SSH preview is not yet
 supported because that transport downloads source contents.
 
+For a review or follow-up task, select existing tracked files changed since a
+branch, tag or commit:
+
+```sh
+cpctx -c . --changed-since main --format compact
+cpctx --explain . --changed-since HEAD~1
+```
+
+This compares the revision with the current worktree, including committed,
+staged and unstaged changes. It intersects other filters; deleted and untracked
+files are omitted. Output contains current complete files, not a Git patch or
+dependency expansion. Git and the referenced history must be available locally;
+SSH cannot be combined with this option.
+
 ## Output size and format
 
 Use `--format compact` to keep all selected files but omit the repeated directory tree. The default `--format full` includes it. `-t` always produces only a tree.

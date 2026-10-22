@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Every pull request must
 
 ### Added
 
+- Add --changed-since for local Git history/index/worktree selection, intersecting existing filters and preserving NUL-delimited filenames; omit deleted/untracked paths and expose unchanged-path reasons in previews.
+
 - Add metadata-only --explain/--dry-run modes with source sizes, largest files, exclusion reasons and budget guidance; bound diagnostic traversal/output independently and reject SSH rather than downloading source for a dry run.
 
 - Add project-relative include/exclude globs in CLI and profiles, extensionless file selection and explicit safe hidden-configuration prefixes; retain Git ignores, credential checks and protected-path exclusions.
