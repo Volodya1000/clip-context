@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clip_context::profile::{DEFAULT_CONFIG_FILE, load_profile};
+use clip_context::remote::collect_remote_project;
 use clip_context::snapshot::{
     SelectionOptions, SnapshotLimits, collect_project_with_options_and_limits,
 };
@@ -18,6 +19,7 @@ struct SelectionArguments {
     extensions: Vec<String>,
     excluded_directories: Vec<String>,
     limits: SnapshotLimits,
+    ssh_destination: Option<String>,
 }
 
 pub fn run_snapshot(mode: &OsStr, path: &OsStr, flags: &[OsString]) -> ExitCode {
@@ -38,7 +40,12 @@ pub fn run_snapshot(mode: &OsStr, path: &OsStr, flags: &[OsString]) -> ExitCode 
         }
     };
 
-    match collect_project_with_options_and_limits(root, &options, &arguments.limits) {
+    let snapshot_result = if let Some(destination) = arguments.ssh_destination.as_deref() {
+        collect_remote_project(destination, root, &options, &arguments.limits)
+    } else {
+        collect_project_with_options_and_limits(root, &options, &arguments.limits)
+    };
+    match snapshot_result {
         Ok(snapshot) => {
             if mode == "--clipboard" || mode == "-c" {
                 if let Err(error) = crate::clipboard::copy_text(&snapshot.to_markdown()) {
@@ -86,6 +93,9 @@ fn parse_selection(flags: &[OsString]) -> Result<SelectionArguments, &'static st
             }
             "--config" if arguments.config_file.is_none() && !value.is_empty() => {
                 arguments.config_file = Some(PathBuf::from(value));
+            }
+            "--ssh" if arguments.ssh_destination.is_none() && !value.is_empty() => {
+                arguments.ssh_destination = Some(value.to_owned());
             }
             "--max-bytes" => {
                 let limit: NonZeroUsize = value
