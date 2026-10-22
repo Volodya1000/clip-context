@@ -67,7 +67,10 @@ pub fn run_snapshot(mode: &OsStr, path: &OsStr, flags: &[OsString]) -> ExitCode 
                 eprintln!("Project context copied to clipboard.");
             } else {
                 let mut stdout = io::stdout().lock();
-                if let Err(error) = stdout.write_all(rendered.as_bytes()).and_then(|()| stdout.flush()) {
+                if let Err(error) = stdout
+                    .write_all(rendered.as_bytes())
+                    .and_then(|()| stdout.flush())
+                {
                     eprintln!("Output error: {error}");
                     return ExitCode::from(1);
                 }

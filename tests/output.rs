@@ -55,7 +55,10 @@ fn compact_format_omits_duplicate_tree_without_dropping_source_code() {
     assert!(compact_text.len() < full_text.len());
     for i in 0..8 {
         assert!(compact_text.contains(&format!("## src/component/nested/mod{i}.rs")));
-        assert_eq!(compact_text.matches(&format!("unique_source_{i}")).count(), 1);
+        assert_eq!(
+            compact_text.matches(&format!("unique_source_{i}")).count(),
+            1
+        );
     }
 }
 
@@ -84,7 +87,10 @@ fn compact_output_preserves_backticks_and_newlines() {
 #[test]
 fn tree_only_mode_reports_only_emitted_tree_size() {
     let fixture = Fixture::new();
-    fixture.file("src/code.rs", "very long irrelevant content repeated repeatedly");
+    fixture.file(
+        "src/code.rs",
+        "very long irrelevant content repeated repeatedly",
+    );
     let tree = invoke(&fixture, "-t", &["--format", "compact"]);
     let plain_tree = invoke(&fixture, "-t", &[]);
     assert!(tree.status.success());
@@ -97,7 +103,11 @@ fn tree_only_mode_reports_only_emitted_tree_size() {
 fn invalid_format_fails_without_data_or_stats() {
     let fixture = Fixture::new();
     fixture.file("src/main.rs", "must-not-be-exposed");
-    for values in [vec!["--format", "minimal"], vec!["--format"], vec!["--format", ""]] {
+    for values in [
+        vec!["--format", "minimal"],
+        vec!["--format"],
+        vec!["--format", ""],
+    ] {
         let output = invoke(&fixture, "-s", &values);
         assert!(!output.status.success());
         assert_eq!(output.stdout, Vec::<u8>::new());

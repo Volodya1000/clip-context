@@ -124,13 +124,7 @@ mod linux {
             .expect("CLI must execute");
         assert!(expected.status.success());
 
-        let copied = execute_in_session(
-            &fixture,
-            "-c",
-            true,
-            false,
-            &["--format", "compact"],
-        );
+        let copied = execute_in_session(&fixture, "-c", true, false, &["--format", "compact"]);
         assert!(copied.status.success());
         assert_eq!(copied.stdout, Vec::<u8>::new());
         assert_eq!(captured(&fixture).as_bytes(), expected.stdout);
