@@ -460,7 +460,8 @@ fn invalid_budget_arguments_fail_before_emitting_any_content() {
 fn secret_in_excluded_directory_does_not_block_export() {
     let fixture = Fixture::new();
     fixture.file("src/main.rs", "safe");
-    fixture.file("secrets/keys.rs", "-----BEGIN PRIVATE KEY-----\n");
+    let synthetic_header = ["-----", "BEGIN ", "PRIVATE ", "KEY-----", "\n"].concat();
+    fixture.file("secrets/keys.rs", &synthetic_header);
     let output = execute_with_flags(&fixture, &["--exclude-dir", "secrets"]);
     assert!(output.status.success());
     let body = String::from_utf8(output.stdout).expect("stdout is UTF-8");
