@@ -7,6 +7,7 @@
 //! assert_eq!(clip_context::APPLICATION_NAME, "clip-context");
 //! ```
 
+pub mod git;
 pub mod profile;
 pub mod remote;
 pub mod snapshot;

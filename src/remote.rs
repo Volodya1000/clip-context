@@ -8,7 +8,10 @@ use std::ffi::OsStr;
 use std::fs::{self, OpenOptions};
 use std::io::{self, Cursor, Read};
 use std::path::{Component, Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
+use std::sync::mpsc;
+use std::thread;
+use std::time::{Duration, Instant};
 
 use crate::snapshot::{
     BUILTIN_EXCLUDED_DIRECTORIES, SelectionOptions, Snapshot, SnapshotLimits, collect_project_tree,
@@ -18,6 +21,34 @@ use crate::snapshot::{
 /// Maximum bytes accepted from remote tar, including tar metadata (16 MiB).
 pub const MAX_REMOTE_ARCHIVE_BYTES: usize = 16 * 1024 * 1024;
 const MAX_REMOTE_ARCHIVE_ENTRIES: usize = 10_000;
+
+/// Source or path-only collection after the bounded archive is transferred.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum RemoteMode {
+    /// Read selected source files and run credential checks.
+    #[default]
+    Sources,
+    /// Collect only selected paths after extraction.
+    Tree,
+}
+
+/// Settings for the SSH transport, independent of rendered-context budgets.
+#[derive(Debug, Clone, Copy)]
+pub struct RemoteOptions {
+    /// Overall deadline for receiving the archive and SSH process completion.
+    pub timeout: Duration,
+    /// Whether to include source contents in the final snapshot.
+    pub mode: RemoteMode,
+}
+
+impl Default for RemoteOptions {
+    fn default() -> Self {
+        Self {
+            timeout: Duration::from_secs(60),
+            mode: RemoteMode::Sources,
+        }
+    }
+}
 
 /// Collect a POSIX project over SSH, without installing cpctx remotely.
 ///
@@ -62,7 +93,13 @@ pub fn collect_remote_project_with_selection<F>(
 where
     F: FnOnce(&Path) -> io::Result<SelectionOptions>,
 {
-    collect_remote_with_selection(destination, remote_root, limits, select, true)
+    collect_remote_with_options(
+        destination,
+        remote_root,
+        limits,
+        &RemoteOptions::default(),
+        select,
+    )
 }
 
 /// Collect a remote project's tree without downloading code contents into
@@ -80,19 +117,42 @@ pub fn collect_remote_tree_with_selection<F>(
 where
     F: FnOnce(&Path) -> io::Result<SelectionOptions>,
 {
-    collect_remote_with_selection(destination, remote_root, limits, select, false)
+    collect_remote_with_options(
+        destination,
+        remote_root,
+        limits,
+        &RemoteOptions {
+            mode: RemoteMode::Tree,
+            ..RemoteOptions::default()
+        },
+        select,
+    )
 }
 
-fn collect_remote_with_selection<F>(
+/// Collect over SSH with an explicit transfer/process deadline and mode.
+///
+/// The deadline includes archive reception and SSH process completion, not local
+/// extraction/rendering. Remote stderr is not echoed into export diagnostics.
+///
+/// # Errors
+/// Returns an error for invalid settings, timeout, SSH/archive failures or any
+/// selection/collection failure. No partial snapshot is returned.
+pub fn collect_remote_with_options<F>(
     destination: &str,
     remote_root: &Path,
     limits: &SnapshotLimits,
+    transport: &RemoteOptions,
     select: F,
-    include_contents: bool,
 ) -> io::Result<Snapshot>
 where
     F: FnOnce(&Path) -> io::Result<SelectionOptions>,
 {
+    if transport.timeout.is_zero() || Instant::now().checked_add(transport.timeout).is_none() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "SSH timeout must be positive and representable",
+        ));
+    }
     validate_destination(destination)?;
     let remote_path = remote_root.to_str().ok_or_else(|| {
         io::Error::new(
@@ -126,43 +186,12 @@ where
         .spawn()
         .map_err(|error| io::Error::new(error.kind(), format!("could not start SSH: {error}")))?;
 
-    let mut bytes = Vec::new();
-    let mut stdout = child
-        .stdout
-        .take()
-        .ok_or_else(|| io::Error::other("SSH stdout pipe was not available"))?;
-    let read_result = stdout
-        .by_ref()
-        .take(MAX_REMOTE_ARCHIVE_BYTES as u64 + 1)
-        .read_to_end(&mut bytes);
-    drop(stdout);
-
-    if bytes.len() > MAX_REMOTE_ARCHIVE_BYTES || read_result.is_err() {
-        child.kill()?;
-        child.wait()?;
-        if let Err(error) = read_result {
-            return Err(io::Error::new(
-                error.kind(),
-                format!("could not read SSH archive: {error}"),
-            ));
-        }
-        return Err(io::Error::new(
-            io::ErrorKind::FileTooLarge,
-            "remote archive exceeds the 16 MiB transfer limit",
-        ));
-    }
-
-    let status = child.wait()?;
-    if !status.success() {
-        return Err(io::Error::other(
-            "remote SSH or tar command failed; verify access, directory and tar availability",
-        ));
-    }
+    let bytes = receive_archive(&mut child, transport.timeout)?;
 
     let directory = tempfile::tempdir()?;
     unpack_archive(&bytes, directory.path())?;
     let options = select(directory.path())?;
-    let mut snapshot = if include_contents {
+    let mut snapshot = if transport.mode == RemoteMode::Sources {
         collect_project_with_options_and_limits(directory.path(), &options, limits)?
     } else {
         collect_project_tree(directory.path(), &options)?
@@ -175,6 +204,98 @@ where
             .into_owned(),
     );
     Ok(snapshot)
+}
+
+fn stop_ssh(child: &mut Child) {
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
+fn receive_archive(child: &mut Child, timeout: Duration) -> io::Result<Vec<u8>> {
+    let deadline = Instant::now()
+        .checked_add(timeout)
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "SSH timeout is too large"))?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| io::Error::other("SSH stdout pipe was not available"))?;
+    let (sender, receiver) = mpsc::sync_channel(1);
+    let reader = thread::Builder::new()
+        .name("cpctx-ssh-reader".into())
+        .spawn(move || {
+            let mut bytes = Vec::new();
+            let result = stdout
+                .take(MAX_REMOTE_ARCHIVE_BYTES as u64 + 1)
+                .read_to_end(&mut bytes)
+                .and_then(|_| {
+                    if bytes.len() > MAX_REMOTE_ARCHIVE_BYTES {
+                        Err(io::Error::new(
+                            io::ErrorKind::FileTooLarge,
+                            "remote archive exceeds the 16 MiB transfer limit",
+                        ))
+                    } else {
+                        Ok(bytes)
+                    }
+                });
+            let _ = sender.send(result);
+        });
+    let reader = match reader {
+        Ok(reader) => reader,
+        Err(error) => {
+            stop_ssh(child);
+            return Err(error);
+        }
+    };
+    let bytes = match receiver.recv_timeout(timeout) {
+        Ok(Ok(bytes)) => bytes,
+        Ok(Err(error)) => {
+            stop_ssh(child);
+            return Err(error);
+        }
+        Err(error) => {
+            stop_ssh(child);
+            // Do not join a blocked reader: an SSH proxy descendant may retain
+            // the pipe. The worker owns only that pipe and its bounded buffer.
+            return Err(io::Error::new(
+                if error == mpsc::RecvTimeoutError::Timeout {
+                    io::ErrorKind::TimedOut
+                } else {
+                    io::ErrorKind::Other
+                },
+                "SSH archive transfer timed out or its reader stopped; no context exported",
+            ));
+        }
+    };
+    reader
+        .join()
+        .map_err(|_| io::Error::other("SSH archive reader failed"))?;
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) => {}
+            Err(error) => {
+                stop_ssh(child);
+                return Err(error);
+            }
+        }
+        if Instant::now() >= deadline {
+            stop_ssh(child);
+            return Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "SSH process completion timed out; no context exported",
+            ));
+        }
+        thread::sleep(Duration::from_millis(10));
+    };
+    if !status.success() {
+        let message = if status.code() == Some(255) {
+            "SSH connection failed; verify host keys, authentication and network access"
+        } else {
+            "remote SSH or tar command failed; verify directory permissions and tar availability"
+        };
+        return Err(io::Error::other(message));
+    }
+    Ok(bytes)
 }
 
 fn validate_destination(destination: &str) -> io::Result<()> {
@@ -201,15 +322,7 @@ fn remote_tar_command(remote_path: &str) -> String {
     // Every prefiltered directory is already excluded by the local collector.
     // These patterns must never omit .gitignore or .cpctx.toml: both are
     // required locally for correct selection and profile resolution.
-    const HIDDEN_GENERATED: &[&str] = &[
-        ".git",
-        ".venv",
-        ".idea",
-        ".vscode",
-        ".mypy_cache",
-        ".pytest_cache",
-        ".tox",
-    ];
+    const HIDDEN_GENERATED: &[&str] = &[".git", ".venv", ".mypy_cache", ".pytest_cache", ".tox"];
     let mut flags = String::new();
     for name in BUILTIN_EXCLUDED_DIRECTORIES.iter().chain(HIDDEN_GENERATED) {
         flags.push_str(" --exclude=");

@@ -1,10 +1,13 @@
 //! Built-in source selection rules.
 //!
-//! The fixed extension and directory lists are only the first-stage defaults;
-//! custom inclusion and exclusion rules will be introduced in later PRs.
+//! Explicit path globs augment the selection model without overriding ignores.
 
+use std::collections::BTreeSet;
 use std::ffi::OsStr;
-use std::path::Path;
+use std::io;
+use std::path::{Component, Path, PathBuf};
+
+use ignore::overrides::{Override, OverrideBuilder};
 
 /// Additional file-selection rules applied on top of the safe built-in defaults.
 ///
@@ -14,6 +17,9 @@ use std::path::Path;
 pub struct SelectionOptions {
     extensions: Vec<String>,
     excluded_directories: Vec<String>,
+    includes: Vec<String>,
+    excludes: Vec<String>,
+    changed_paths: Option<BTreeSet<PathBuf>>,
 }
 
 impl SelectionOptions {
@@ -50,6 +56,157 @@ impl SelectionOptions {
     pub fn exclude_directory(&mut self, name: &str) {
         self.excluded_directories.push(name.to_owned());
     }
+
+    /// Select paths by a project-relative glob instead of default extensions.
+    /// Explicit extensions, if present, further restrict the matching files.
+    ///
+    /// # Errors
+    /// Returns an error for invalid or unsafe glob syntax.
+    pub fn include_pattern(&mut self, pattern: &str) -> io::Result<()> {
+        validate_pattern(pattern)?;
+        self.includes.push(pattern.to_owned());
+        Ok(())
+    }
+
+    /// Exclude project-relative paths matching a glob; exclusions always win.
+    ///
+    /// # Errors
+    /// Returns an error for invalid or unsafe glob syntax.
+    pub fn exclude_pattern(&mut self, pattern: &str) -> io::Result<()> {
+        validate_pattern(pattern)?;
+        self.excludes.push(pattern.to_owned());
+        Ok(())
+    }
+
+    /// Intersect file selection with a set of safe project-relative paths.
+    /// An empty set selects no files. Existing ignores and exclusions still win.
+    ///
+    /// # Errors
+    /// Returns an error if a path is empty, absolute or contains parent traversal.
+    pub fn restrict_to_paths(
+        &mut self,
+        paths: impl IntoIterator<Item = PathBuf>,
+    ) -> io::Result<()> {
+        let paths: BTreeSet<_> = paths.into_iter().collect();
+        if paths.iter().any(|path| {
+            path.as_os_str().is_empty()
+                || path
+                    .components()
+                    .any(|part| !matches!(part, Component::Normal(_)))
+        }) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "selected paths must be relative without parent traversal",
+            ));
+        }
+        self.changed_paths = Some(paths);
+        Ok(())
+    }
+}
+
+fn validate_pattern(pattern: &str) -> io::Result<()> {
+    if pattern.is_empty()
+        || pattern.starts_with(['!', '#', '/'])
+        || pattern.contains(['\\', ':', '\n', '\r', '\0'])
+        || pattern.split('/').any(|part| part == "..")
+        || pattern.trim() != pattern
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "glob must be a nonempty project-relative pattern without '..', negation or control characters",
+        ));
+    }
+    OverrideBuilder::new(".")
+        .add(pattern)
+        .map_err(io::Error::other)?;
+    Ok(())
+}
+
+pub(super) struct SelectionRules {
+    patterns: Override,
+    options: SelectionOptions,
+}
+
+impl SelectionRules {
+    pub(super) fn new(root: &Path, options: &SelectionOptions) -> io::Result<Self> {
+        let mut builder = OverrideBuilder::new(root);
+        for pattern in &options.includes {
+            builder.add(pattern).map_err(io::Error::other)?;
+        }
+        // Append exclusions last so an include can never undo an exclusion.
+        for pattern in &options.excludes {
+            builder
+                .add(&format!("!{pattern}"))
+                .map_err(io::Error::other)?;
+        }
+        Ok(Self {
+            patterns: builder.build().map_err(io::Error::other)?,
+            options: options.clone(),
+        })
+    }
+
+    pub(super) fn exclusion(
+        &self,
+        path: &Path,
+        relative: &Path,
+        is_dir: bool,
+    ) -> Option<&'static str> {
+        if !is_dir
+            && self
+                .options
+                .changed_paths
+                .as_ref()
+                .is_some_and(|paths| !paths.contains(relative))
+        {
+            return Some("unchanged tracked path or untracked file");
+        }
+        let name = path.file_name()?;
+        let name_text = name.to_string_lossy();
+        if [
+            ".git",
+            ".ssh",
+            ".aws",
+            ".kube",
+            ".env",
+            "id_rsa",
+            "id_dsa",
+            "id_ecdsa",
+            "id_ed25519",
+        ]
+        .iter()
+        .any(|blocked| name.eq_ignore_ascii_case(OsStr::new(blocked)))
+            || name_text.to_ascii_lowercase().starts_with(".env")
+        {
+            return Some("protected credential or VCS path");
+        }
+        if is_dir && !includes_directory(name, &self.options) {
+            return Some("excluded directory");
+        }
+        if is_hidden(name) && !self.explicit_hidden_path(relative, is_dir) {
+            return Some("hidden path (requires an explicit include prefix)");
+        }
+        if self.patterns.matched(path, is_dir).is_ignore() {
+            return Some("path glob selection");
+        }
+        if !is_dir
+            && (self.options.includes.is_empty() || !self.options.extensions.is_empty())
+            && !has_supported_extension(path, &self.options)
+        {
+            return Some("extension selection");
+        }
+        None
+    }
+
+    fn explicit_hidden_path(&self, relative: &Path, is_dir: bool) -> bool {
+        let relative = relative
+            .components()
+            .map(|c| c.as_os_str().to_string_lossy())
+            .collect::<Vec<_>>()
+            .join("/");
+        self.options.includes.iter().any(|pattern| {
+            pattern == &relative || (is_dir && pattern.starts_with(&format!("{relative}/")))
+        })
+    }
 }
 
 const DEFAULT_EXTENSIONS: &[&str] = &[
@@ -67,6 +224,10 @@ pub const BUILTIN_EXCLUDED_DIRECTORIES: &[&str] = &[
     "target",
     "venv",
     "__pycache__",
+    ".venv",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".tox",
 ];
 
 pub(super) fn is_hidden(name: &OsStr) -> bool {

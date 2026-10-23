@@ -6,6 +6,20 @@ All notable changes to this project are documented here. Every pull request must
 
 ### Added
 
+- Gate release publication on trusted successful runtime/security/coverage/package/live-acceptance checks for the exact tagged commit; reject missing, pending, stale-success and wrong-app results and exercise negative cases without remote mutations.
+
+- Bound SSH archive reception and process completion with a default 60-second operation deadline and --ssh-timeout; add configurable library transport options and safe connection-vs-remote-command diagnostics.
+
+- Add --changed-since for local Git history/index/worktree selection, intersecting existing filters and preserving NUL-delimited filenames; omit deleted/untracked paths and expose unchanged-path reasons in previews.
+
+- Add metadata-only --explain/--dry-run modes with source sizes, largest files, exclusion reasons and budget guidance; bound diagnostic traversal/output independently and reject SSH rather than downloading source for a dry run.
+
+- Add project-relative include/exclude globs in CLI and profiles, extensionless file selection and explicit safe hidden-configuration prefixes; retain Git ignores, credential checks and protected-path exclusions.
+
+- Add live Linux X11/Wayland, Windows PowerShell clipboard and real SSH acceptance scripts and CI evidence artifacts, with an explicit table of completed and pending release gates.
+- Cover every credential-prefix length boundary, embedded private-key markers, typed credential literals and safe environment references; document the detector threat model and an ordinary-export performance measurement.
+
+
 - Document the exact main-branch ruleset, required checks, no-bypass policy and a reproducible negative enforcement test; record that administration access is still required to apply it.
 
 - Prefilter known generated and hidden cache directories on SSH servers using supported tar exclude patterns, with automatic fallback for POSIX tar implementations without exclusions.
@@ -32,6 +46,10 @@ All notable changes to this project are documented here. Every pull request must
 - First deterministic UTF-8 source-file collector with a filtered directory tree and Markdown formatter.
 - `--stdout PATH` and `--tree PATH` commands, including diagnostics for invalid project paths.
 - Integration tests for file selection, generated-directory exclusion, Markdown formatting, CLI outputs and errors.
+
+### Fixed
+
+- Detect private-key headers embedded in quoted source and credentials in typed Rust/Python assignments; avoid treating typed assignments of identifiers as literal passwords.
 
 ### Changed
 

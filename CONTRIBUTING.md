@@ -28,6 +28,9 @@ The release workflow runs in dry-run mode for pull requests and manual
 dispatches. A real GitHub Release requires a `vX.Y.Z` tag matching
 `Cargo.toml`, a tag commit reachable from `main`, both tested packages and
 matching SHA-256 checksums. Only the publish job receives `contents: write`.
+Publication also requires the latest trusted successful runtime, security,
+coverage, package and live acceptance checks on the exact tag commit; missing,
+pending or failed checks block publication. See [release procedure](docs/releasing.md).
 Keep these gates intact when changing release scripts; never bypass them to
 make an individual job green.
 

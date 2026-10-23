@@ -1,0 +1,15 @@
+[
+  "Rust (ubuntu-latest)",
+  "Rust (windows-latest)",
+  "Minimum Rust version 1.85",
+  "Test coverage (90% minimum)",
+  "Dependency security and licensing",
+  "Repository hygiene",
+  "TOML syntax and formatting",
+  "GitHub Actions security",
+  "Search committed secrets",
+  "Package Linux x86_64 (archive + deb)",
+  "Package Windows x86_64 (zip + PATH installer)",
+  "Live Linux acceptance (X11, Wayland, SSH)",
+  "Live Windows acceptance"
+]

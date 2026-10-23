@@ -50,6 +50,47 @@ extensions = ["md"]
 
 Run `cpctx -s . --profile docs`, or supply another file with `--config settings/profiles.toml --profile docs`. A CLI `--ext` **replaces** profile extensions; `--exclude-dir` **adds** exclusions. Root and nested `.gitignore` rules, hidden paths and built-in exclusions still apply.
 
+Select exact paths or quoted globs, including extensionless files:
+
+```sh
+cpctx -s . --include 'src/**' --include Dockerfile --exclude '**/*.generated.rs'
+cpctx -s . --include '.github/workflows/*.yml' --include Makefile
+```
+
+Include globs replace the default extension list; explicit CLI/profile extensions
+further narrow matches. CLI globs append to profile `include`/`exclude` arrays;
+exclusions and `.gitignore` always win. Hidden paths require a literal include
+prefix. `.git`, `.env*`, credential directories and standard SSH private-key
+names remain protected. Quote patterns so your shell does not expand them.
+
+Preview selection before exporting:
+
+```sh
+cpctx --explain . --profile backend
+cpctx --dry-run . --include 'src/**' --max-estimated-tokens 8000
+```
+
+The local preview prints paths, source sizes, largest files and exclusion reasons;
+it reads metadata and `.gitignore`, not source contents. Its size estimate excludes
+Markdown/tree overhead and does not scan secrets or guarantee that export fits.
+Export limits are guidance in preview mode; diagnostics have separate 10,000-entry
+and 4 MiB bounds. Excluded directories are not traversed. SSH preview is not yet
+supported because that transport downloads source contents.
+
+For a review or follow-up task, select existing tracked files changed since a
+branch, tag or commit:
+
+```sh
+cpctx -c . --changed-since main --format compact
+cpctx --explain . --changed-since HEAD~1
+```
+
+This compares the revision with the current worktree, including committed,
+staged and unstaged changes. It intersects other filters; deleted and untracked
+files are omitted. Output contains current complete files, not a Git patch or
+dependency expansion. Git and the referenced history must be available locally;
+SSH cannot be combined with this option.
+
 ## Output size and format
 
 Use `--format compact` to keep all selected files but omit the repeated directory tree. The default `--format full` includes it. `-t` always produces only a tree.
@@ -74,10 +115,14 @@ Only the **client computer** needs `cpctx`. A remote POSIX server needs SSH acce
 
 ```sh
 cpctx -s /srv/project --ssh dev@server
-cpctx -c /srv/project --ssh dev@server --format compact
+cpctx -c /srv/project --ssh dev@server --format compact --ssh-timeout 30
 ```
 
-The path is remote, but clipboard output stays on your local computer. Host-key verification uses your SSH configuration. The transferred archive is limited to **16 MiB**; filtering happens locally after download, so large repositories may hit this transfer limit.
+The overall SSH transfer/process deadline defaults to 60 seconds; use
+`--ssh-timeout N` to set positive seconds. The deadline covers receiving the
+archive and SSH exit, independently of output budgets and local rendering.
+
+The path is remote, but clipboard output stays on your local computer. Host-key verification uses your SSH configuration. The transferred archive is limited to **16 MiB**; supported tar implementations prefilter known generated directories before transfer. Profiles and .gitignore filtering still run locally, so other large ignored files can hit this limit.
 
 ## Clipboard support
 
@@ -90,6 +135,8 @@ A graphical session is required to copy. Headless systems can use `cpctx -s` and
 ## Safety and limitations
 
 Known private-key headers and several common credential patterns block source exports. This is **not exhaustive secret detection**: inspect context before sharing sensitive projects. Tree-only mode reports paths without reading source file contents. SSH archives are handled in a temporary directory, with unsafe paths and link materialization blocked. The full-context output budget and the SSH archive transfer limit are separate safeguards.
+
+See [acceptance evidence](docs/acceptance.md) and the [detector threat model](docs/security.md).
 
 ## Reference
 

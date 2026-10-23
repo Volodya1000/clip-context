@@ -2,17 +2,16 @@
 
 use std::ffi::{OsStr, OsString};
 use std::io::{self, Write};
-use std::num::NonZeroUsize;
+use std::num::{NonZeroU64, NonZeroUsize};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::time::Duration;
 
 use clip_context::profile::{DEFAULT_CONFIG_FILE, load_profile};
-use clip_context::remote::{
-    collect_remote_project_with_selection, collect_remote_tree_with_selection,
-};
+use clip_context::remote::{RemoteMode, RemoteOptions, collect_remote_with_options};
 use clip_context::snapshot::{
     ContextFormat, SelectionOptions, SnapshotLimits, collect_project_tree,
-    collect_project_with_options_and_limits,
+    collect_project_with_options_and_limits, explain_project,
 };
 
 #[derive(Default)]
@@ -21,8 +20,12 @@ struct SelectionArguments {
     config_file: Option<PathBuf>,
     extensions: Vec<String>,
     excluded_directories: Vec<String>,
+    includes: Vec<String>,
+    excludes: Vec<String>,
+    changed_since: Option<String>,
     limits: SnapshotLimits,
     ssh_destination: Option<String>,
+    ssh_timeout: Option<NonZeroU64>,
     format: ContextFormat,
 }
 
@@ -36,6 +39,9 @@ pub fn run_snapshot(mode: &OsStr, path: &OsStr, flags: &[OsString]) -> ExitCode 
     };
 
     let root: &Path = Path::new(path);
+    if mode == "--explain" || mode == "--dry-run" {
+        return run_explanation(root, &arguments);
+    }
     let tree_only = mode == "--tree" || mode == "-t";
     let snapshot_result = if let Some(destination) = arguments.ssh_destination.as_deref() {
         let resolve_remote = |local_root: &Path| {
@@ -51,16 +57,25 @@ pub fn run_snapshot(mode: &OsStr, path: &OsStr, flags: &[OsString]) -> ExitCode 
             }
             resolve_selection(local_root, &arguments)
         };
-        if tree_only {
-            collect_remote_tree_with_selection(destination, root, &arguments.limits, resolve_remote)
-        } else {
-            collect_remote_project_with_selection(
-                destination,
-                root,
-                &arguments.limits,
-                resolve_remote,
-            )
-        }
+        let transport = RemoteOptions {
+            mode: if tree_only {
+                RemoteMode::Tree
+            } else {
+                RemoteMode::Sources
+            },
+            timeout: arguments
+                .ssh_timeout
+                .map_or(Duration::from_secs(60), |seconds| {
+                    Duration::from_secs(seconds.get())
+                }),
+        };
+        collect_remote_with_options(
+            destination,
+            root,
+            &arguments.limits,
+            &transport,
+            resolve_remote,
+        )
     } else {
         resolve_selection(root, &arguments).and_then(|options| {
             if tree_only {
@@ -107,6 +122,25 @@ pub fn run_snapshot(mode: &OsStr, path: &OsStr, flags: &[OsString]) -> ExitCode 
     }
 }
 
+fn run_explanation(root: &Path, arguments: &SelectionArguments) -> ExitCode {
+    if arguments.ssh_destination.is_some() {
+        eprintln!(
+            "--explain/--dry-run currently require a local project; SSH would transfer source contents."
+        );
+        return ExitCode::from(2);
+    }
+    let result = resolve_selection(root, arguments)
+        .and_then(|options| explain_project(root, &options, &arguments.limits))
+        .and_then(|report| io::stdout().lock().write_all(report.as_bytes()));
+    match result {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => {
+            eprintln!("{error}");
+            ExitCode::from(1)
+        }
+    }
+}
+
 fn parse_selection(flags: &[OsString]) -> Result<SelectionArguments, String> {
     let mut arguments = SelectionArguments::default();
     let mut pairs = flags.chunks_exact(2);
@@ -115,46 +149,25 @@ fn parse_selection(flags: &[OsString]) -> Result<SelectionArguments, String> {
         let flag: &str = pair[0].to_str().ok_or("Option names must be UTF-8.")?;
         let value: &str = pair[1].to_str().ok_or("Option values must be UTF-8.")?;
 
+        if parse_file_selection(&mut arguments, flag, value)? {
+            continue;
+        }
         match flag {
-            "--ext" => {
-                if !SelectionOptions::valid_extension(value) {
-                    return Err(
-                        "--ext requires letters and digits only, without a leading dot.".into(),
-                    );
+            "--ssh-timeout" => {
+                if arguments.ssh_timeout.is_some() {
+                    return Err("--ssh-timeout may be specified only once.".into());
                 }
-                arguments.extensions.push(value.to_owned());
+                arguments.ssh_timeout = Some(
+                    value
+                        .parse()
+                        .map_err(|_error| "--ssh-timeout requires positive seconds.")?,
+                );
             }
-            "--exclude-dir" => {
-                if !SelectionOptions::valid_directory_name(value) {
-                    return Err(
-                        "--exclude-dir requires a single directory name, not a path.".into(),
-                    );
+            "--changed-since" => {
+                if arguments.changed_since.is_some() || value.is_empty() {
+                    return Err("--changed-since requires one nonempty revision, once.".into());
                 }
-                arguments.excluded_directories.push(value.to_owned());
-            }
-            "--profile" => {
-                if arguments.profile.is_some() {
-                    return Err("--profile may be specified only once.".into());
-                }
-                if value.is_empty()
-                    || !value.bytes().all(|character| {
-                        character.is_ascii_alphanumeric() || matches!(character, b'-' | b'_')
-                    })
-                {
-                    return Err(
-                        "--profile requires a name using letters, digits, '-' or '_'.".into(),
-                    );
-                }
-                arguments.profile = Some(value.to_owned());
-            }
-            "--config" => {
-                if arguments.config_file.is_some() {
-                    return Err("--config may be specified only once.".into());
-                }
-                if value.is_empty() {
-                    return Err("--config requires a nonempty file path.".into());
-                }
-                arguments.config_file = Some(PathBuf::from(value));
+                arguments.changed_since = Some(value.to_owned());
             }
             "--ssh" => {
                 if arguments.ssh_destination.is_some() {
@@ -194,11 +207,84 @@ fn parse_selection(flags: &[OsString]) -> Result<SelectionArguments, String> {
             missing_value.to_string_lossy()
         ));
     }
+    validate_arguments(&arguments)?;
+
+    Ok(arguments)
+}
+
+fn parse_file_selection(
+    arguments: &mut SelectionArguments,
+    flag: &str,
+    value: &str,
+) -> Result<bool, String> {
+    match flag {
+        "--include" | "--exclude" => {
+            let mut validation = SelectionOptions::default();
+            validation
+                .include_pattern(value)
+                .map_err(|error| error.to_string())?;
+            if flag == "--include" {
+                arguments.includes.push(value.to_owned());
+            } else {
+                arguments.excludes.push(value.to_owned());
+            }
+        }
+        "--ext" => {
+            if !SelectionOptions::valid_extension(value) {
+                return Err(
+                    "--ext requires letters and digits only, without a leading dot.".into(),
+                );
+            }
+            arguments.extensions.push(value.to_owned());
+        }
+        "--exclude-dir" => {
+            if !SelectionOptions::valid_directory_name(value) {
+                return Err("--exclude-dir requires a single directory name, not a path.".into());
+            }
+            arguments.excluded_directories.push(value.to_owned());
+        }
+        "--profile" => {
+            if arguments.profile.is_some() {
+                return Err("--profile may be specified only once.".into());
+            }
+            if value.is_empty()
+                || !value.bytes().all(|character| {
+                    character.is_ascii_alphanumeric() || matches!(character, b'-' | b'_')
+                })
+            {
+                return Err("--profile requires a name using letters, digits, '-' or '_'.".into());
+            }
+            arguments.profile = Some(value.to_owned());
+        }
+        "--config" => {
+            if arguments.config_file.is_some() {
+                return Err("--config may be specified only once.".into());
+            }
+            if value.is_empty() {
+                return Err("--config requires a nonempty file path.".into());
+            }
+            arguments.config_file = Some(PathBuf::from(value));
+        }
+        _ => return Ok(false),
+    }
+    Ok(true)
+}
+
+fn validate_arguments(arguments: &SelectionArguments) -> Result<(), String> {
+    if arguments.ssh_timeout.is_some() && arguments.ssh_destination.is_none() {
+        return Err("--ssh-timeout requires --ssh.".into());
+    }
     if arguments.config_file.is_some() && arguments.profile.is_none() {
         return Err("--config requires --profile.".into());
     }
+    if arguments.changed_since.is_some() && arguments.ssh_destination.is_some() {
+        return Err(
+            "--changed-since requires a local Git checkout; it cannot be combined with --ssh."
+                .into(),
+        );
+    }
 
-    Ok(arguments)
+    Ok(())
 }
 
 fn resolve_selection(root: &Path, args: &SelectionArguments) -> io::Result<SelectionOptions> {
@@ -221,6 +307,15 @@ fn resolve_selection(root: &Path, args: &SelectionArguments) -> io::Result<Selec
     }
     for name in &args.excluded_directories {
         options.exclude_directory(name);
+    }
+    for pattern in &args.includes {
+        options.include_pattern(pattern)?;
+    }
+    for pattern in &args.excludes {
+        options.exclude_pattern(pattern)?;
+    }
+    if let Some(revision) = args.changed_since.as_deref() {
+        options.restrict_to_paths(clip_context::git::changed_paths(root, revision)?)?;
     }
 
     Ok(options)

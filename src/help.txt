@@ -4,14 +4,18 @@ Usage:
   cpctx -s PATH [OPTIONS]   Print source context to stdout
   cpctx -t PATH [OPTIONS]   Print the directory tree only
   cpctx -c PATH [OPTIONS]   Copy source context to the clipboard
+  cpctx --explain PATH     Preview paths, sizes and exclusion reasons
 
 Options:
   --format full|compact     Full Markdown or compact output (default: full)
   --ext EXT                 Include extension; repeatable (e.g. rs, py)
   --exclude-dir NAME        Exclude directory by name; repeatable
+  --include GLOB            Select paths, including extensionless files
+  --exclude GLOB            Exclude matching paths; repeatable
+  --changed-since REV       Select changed existing tracked files (local Git)
   --profile NAME            Use named selection profile from .cpctx.toml
   --config FILE             Override profile file (requires --profile)
-  --ssh HOST                Read a remote PATH through SSH
+  --ssh HOST                Remote PATH; --ssh-timeout N (default: 60s)
   --max-bytes N             Byte budget (default: 262144)
   --max-estimated-tokens N  Approximate context tokens (default: 32000)
   -h, --help                Short usage reference

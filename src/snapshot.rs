@@ -5,6 +5,7 @@
 //! complete rendered-context budgets are enforced before emitting output.
 
 mod collector;
+mod explain;
 mod filter;
 mod markdown;
 mod safety;
@@ -17,6 +18,7 @@ pub use collector::{
     collect_project, collect_project_tree, collect_project_with_options,
     collect_project_with_options_and_limits,
 };
+pub use explain::explain_project;
 pub use filter::{BUILTIN_EXCLUDED_DIRECTORIES, SelectionOptions};
 pub use markdown::ContextFormat;
 pub use safety::{DEFAULT_MAX_ESTIMATED_TOKENS, DEFAULT_MAX_SOURCE_BYTES, SnapshotLimits};

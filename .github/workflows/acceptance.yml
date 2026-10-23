@@ -1,0 +1,73 @@
+name: Live acceptance
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: Live Linux acceptance (X11, Wayland, SSH)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec  # stable
+      - name: Install real clipboard servers and SSH
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb xclip xsel sway wl-clipboard openssh-server
+          sudo mkdir -p /run/sshd
+      - name: Build executable
+        run: cargo build --release --locked
+      - name: Exercise headless Linux CLI
+        timeout-minutes: 2
+        run: |
+          set -o pipefail
+          bash scripts/acceptance/linux.sh 2>&1 | tee acceptance-linux.log
+      - name: Exercise native X11 and Wayland clipboard
+        timeout-minutes: 2
+        run: |
+          set -o pipefail
+          timeout --kill-after=5 90 bash scripts/acceptance/linux-gui.sh 2>&1 | tee -a acceptance-linux.log
+      - name: Exercise real key-authenticated SSH
+        timeout-minutes: 2
+        run: |
+          set -o pipefail
+          timeout --kill-after=5 90 bash scripts/acceptance/ssh.sh 2>&1 | tee -a acceptance-linux.log
+      - name: Retain acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: acceptance-linux
+          path: acceptance-linux.log
+          if-no-files-found: warn
+
+  windows:
+    name: Live Windows acceptance
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec  # stable
+      - name: Build executable
+        run: cargo build --release --locked
+      - name: Exercise native Windows clipboard
+        shell: pwsh
+        run: .\scripts\acceptance\windows.ps1 2>&1 | Tee-Object acceptance-windows.log
+      - name: Retain acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: acceptance-windows
+          path: acceptance-windows.log
+          if-no-files-found: warn

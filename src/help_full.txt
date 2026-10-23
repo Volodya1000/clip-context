@@ -4,6 +4,8 @@ Usage:
   cpctx -s PATH [OPTIONS]             Print project context
   cpctx -t PATH [OPTIONS]             Print the selected directory tree
   cpctx -c PATH [OPTIONS]             Copy project context to the local clipboard
+  cpctx --explain PATH [OPTIONS]      Preview selection without source contents
+  cpctx --dry-run PATH [OPTIONS]      Alias for --explain
   cpctx -h, --help                    Show the short reference
   cpctx --help-full                   Show this detailed reference
   cpctx -V, --version                 Show the installed version
@@ -23,6 +25,19 @@ Output formats:
                          -t always writes the tree; --format does not change it.
 
 Selection:
+  --changed-since REV    Intersect selection with tracked paths changed between
+                         REV and the current local worktree (once).
+                         Includes committed, staged and unstaged changes.
+                         Deleted paths and untracked files are omitted.
+                         Existing profiles/globs/ignores/secret checks apply.
+                         Supports a project subdirectory and --explain.
+                         Requires Git/history locally; incompatible with --ssh.
+  --include GLOB         Select matching project-relative paths (repeatable).
+                         Replaces default extension selection; explicit --ext
+                         or profile extensions further narrow matching files.
+                         Quote globs to prevent expansion by your shell.
+  --exclude GLOB         Exclude matching paths (repeatable); exclusions win.
+                         Both flags use gitignore-style globs without ! negation.
   --ext EXT              Select only extensions given on the CLI (repeatable).
                          Use names without a dot, for example --ext rs --ext py.
                          Extensions are matched case-insensitively.
@@ -35,7 +50,11 @@ Selection:
   (build, dist, node_modules, target, venv, __pycache__) are excluded.
   Root and nested .gitignore rules are honored, including ! negations.
   Parent/global Git ignores and .git/info/exclude are not read.
-  Explicit/built-in exclusions and hidden-path rules override unignore patterns.
+  A literal include prefix can open hidden configuration, for example
+  --include '.github/workflows/*.yml' or --include .editorconfig.
+  Broad globs never implicitly include hidden paths. .git, .env*, .ssh, .aws,
+  .kube and standard SSH private-key names remain excluded even when included.
+  Explicit/built-in exclusions override unignore patterns.
 
 Profiles:
   --profile NAME         Load a named profile from .cpctx.toml (optional; once).
@@ -44,8 +63,11 @@ Profiles:
   Profiles are opt-in and contain [profiles.NAME] with optional arrays:
     extensions = ["rs", "toml"]
     exclude_directories = ["generated"]
+    include = ["src/**", "Dockerfile"]
+    exclude = ["**/*.generated.rs"]
   --ext replaces the profile's extension list (it does not append).
   --exclude-dir adds exclusions to the profile; built-in exclusions still apply.
+  CLI include/exclude globs append to profile globs; exclusions always win.
   Invalid profile values, unknown keys and missing profiles cause an error.
 
 Safety limits:
@@ -59,13 +81,29 @@ Safety limits:
   Collection fails before stdout or clipboard changes when validation fails.
   Secret detection is not exhaustive: review confidential code before sharing.
 
+Selection preview:
+  --explain PATH / --dry-run PATH are metadata-only output modes for local
+  projects, with the same profiles/globs and root/nested .gitignore semantics.
+  They print selected source sizes, largest files and exclusion reasons.
+  Source contents and credentials are not checked; the source-byte total is
+  only a lower bound, not the exact rendered size or a guarantee of safe export.
+  Export limits are compared for guidance; they do not limit preview output.
+  Previews have independent safety caps of 10000 entries and 4 MiB of report.
+  Excluded directories are reported once without traversing their descendants.
+  SSH is rejected because the existing SSH transport downloads file contents.
+
 Remote SSH:
   --ssh HOST             Read PATH from an SSH alias, host or user@host (once).
+  --ssh-timeout N        Overall transfer/process timeout in seconds (default: 60).
+                         Requires --ssh; positive integer, specified once.
+                         Covers receiving the archive and SSH exit, not local
+                         extraction, scanning or rendering. No partial export.
   Install cpctx locally only; the server needs SSH, a POSIX shell and tar.
   Clipboard output stays local; existing SSH authentication and host keys apply.
   A tar archive is transferred first, with a 16 MiB / 10000-entry safety cap.
   Paths and archive entries are checked; links and devices are not extracted.
-  Filtering, profiles, budget limits and secret scanning run locally afterward.
+  Supported tar implementations prefilter known generated directories first.
+  Profiles, .gitignore filtering, budgets and secret scanning run locally afterward.
   The raw archive may exceed the cap even if many files would later be ignored.
   Remote --config must refer to a file relative to the remote project root.
 
@@ -78,7 +116,7 @@ Clipboard:
 Diagnostics:
   Successful exports print exact rendered UTF-8 bytes and a quick estimate
   (~1 token per 4 output bytes) to stderr, never into stdout or the clipboard.
-  These output metrics are separate from the source-file safety budgets.
+  Both output metrics and final output budgets describe the rendered context.
   Errors go to stderr with a nonzero exit status; invalid options suggest --help.
 
 Examples:

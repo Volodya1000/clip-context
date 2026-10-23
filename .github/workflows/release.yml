@@ -25,6 +25,7 @@ jobs:
           bash -n scripts/release/*.sh
           sh -n scripts/install.sh
           shellcheck scripts/release/*.sh scripts/install.sh
+          bash scripts/release/test-checks.sh
       - name: Check version and build Linux binary
         run: bash scripts/release/build-linux.sh
       - name: Package and smoke-test Linux installs
@@ -64,6 +65,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      checks: read
+      actions: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
