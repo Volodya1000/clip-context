@@ -11,7 +11,7 @@ keywords = ["cli", "clipboard", "developer-tools", "context"]
 categories = ["command-line-utilities", "development-tools"]
 
 [dependencies]
-ignore = "=0.4.29"
+ignore = "=0.4.30"
 serde = { version = "1.0", features = ["derive"] }
 toml = "=0.8.23"
 tar = "=0.4.45"
